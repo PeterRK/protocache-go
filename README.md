@@ -1,14 +1,14 @@
-# ProtoCache-Go
+# ProtoCache Go
 
 Alternative flat binary format for [Protobuf schema](https://protobuf.dev/programming-guides/proto3/). It' works like FlatBuffers, but it's usually smaller and surpports map. Flat means no deserialization overhead. [A benchmark](test/benchmark) shows the Protobuf has considerable deserialization overhead and significant reflection overhead. FlatBuffers is fast but wastes space. ProtoCache takes balance of data size and read speed, so it's useful in data caching.
 
-|  | Protobuf | ProtoCache | FlatBuffers |
-|:-------|----:|----:|----:|
-| Wire format size | 574B | 780B | 1296B |
-| Decode + Traverse + Dealloc | 11451ns | 1121ns | 2191ns |
-| Decode + Traverse + Dealloc (reflection) | 25458ns | 2266ns | - |
+|  | Data Size | Decode + Traverse | Decode + Traverse(reflection) |
+|:-----|----:|-----:|-----:|
+| Protobuf | 574B | 11451ns | 25458ns |
+| ProtoCache  | 780B  | 1121ns | 2266ns |
+| FlatBuffers | 1296B | 2191ns | No Go Api |
 
-See detail in [C++ implement](https://github.com/PeterRK/protocache).
+See detail in [C++ version](https://github.com/PeterRK/protocache).
 
 ## Code Gen
 ```sh
@@ -44,4 +44,4 @@ assert(t, root != nil)
 field := root.Lookup("f64")
 assert(t, field != nil)
 ```
-The reflection apis are simliar to protobuf's. An example can be found in the [test](test/reflect_test.go). CGO is needed to parse schema.
+The reflection apis are simliar to C++ version. An example can be found in the [test](test/reflect_test.go). CGO is needed to parse schema.
