@@ -8,13 +8,13 @@ Alternative flat binary format for [Protobuf schema](https://protobuf.dev/progra
 | ProtoCache  | 780B  | 1121ns | 2266ns |
 | FlatBuffers | 1296B | 2191ns | No Go Api |
 
-See detail in [C++ version](https://github.com/PeterRK/protocache).
+See detail in [C++ version](https://github.com/peterrk/protocache).
 
 ## Code Gen
 ```sh
 protoc --pcgo_out=. test.proto
 ```
-A protobuf compiler plugin called `protoc-gen-pcgo` is available to generate Go file. The generated file is short and human friendly. Don't mind to edit it if nessasery.
+A protobuf compiler plugin called `protoc-gen-pcgo` is [available](cmd/protoc-gen-pcgo) to generate Go file. The generated file is short and human friendly. Don't mind to edit it if nessasery.
 
 ## Basic APIs
 ```go
