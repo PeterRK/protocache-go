@@ -15,54 +15,93 @@ import (
 )
 
 /*
-	func TestBenchmark(t *testing.T) {
-		for {
-			var junk Junk
-			raw, err := os.ReadFile("test.pc")
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			root := pc.As_Main(raw)
-			junk.traversePcMain(root)
-			fmt.Println(junk.fuse())
-			break
+	func TestProtoCacheBenchmark(t *testing.T) {
+		var junk Junk
+		raw, err := os.ReadFile("test.pc")
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
+		root := pc.AS_Main(raw)
+		junk.traversePcMain(root)
+		fmt.Println(junk.fuse())
+	}
 
-		for {
-			var junk Junk
-			raw, err := os.ReadFile("test.pb")
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+	func TestProtobufBenchmark(t *testing.T) {
+		var junk Junk
+		raw, err := os.ReadFile("test.pb")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		root := &pb.Main{}
+		err = proto.Unmarshal(raw, root)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		junk.traversePbMain(root)
+		fmt.Println(junk.fuse())
+
+		junk = Junk{}
+		junk.traversePbMessage(root.ProtoReflect())
+		fmt.Println(junk.fuse())
+	}
+
+	func TestFlatbuffersBenchmark(t *testing.T) {
+		var junk Junk
+		raw, err := os.ReadFile("test.fb")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		root := fb.GetRootAsMain(raw, 0)
+		junk.traverseFbMain(root)
+		fmt.Println(junk.fuse())
+	}
+
+	func BenchmarkProtobufVT(b *testing.B) {
+		b.StopTimer()
+		raw, err := os.ReadFile("test.pb")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		var junk Junk
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
 			root := &pb.Main{}
-			err = proto.Unmarshal(raw, root)
+			err = root.UnmarshalVT(raw)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 			junk.traversePbMain(root)
-			fmt.Println(junk.fuse())
-
-			junk = Junk{}
-			junk.traversePbMessage(root.ProtoReflect())
-			fmt.Println(junk.fuse())
-			break
 		}
+		// b.StopTimer()
+		// fmt.Println(junk.fuse())
+	}
 
-		for {
-			var junk Junk
-			raw, err := os.ReadFile("test.fb")
+	func BenchmarkProtobufVTReflect(b *testing.B) {
+		b.StopTimer()
+		raw, err := os.ReadFile("test.pb")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		var junk Junk
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			root := &pb.Main{}
+			err = root.UnmarshalVT(raw)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			root := fb.GetRootAsMain(raw, 0)
-			junk.traverseFbMain(root)
-			fmt.Println(junk.fuse())
-			break
+			junk.traversePbMessage(root.ProtoReflect())
 		}
+		// b.StopTimer()
+		// fmt.Println(junk.fuse())
 	}
 */
 func BenchmarkProtobuf(b *testing.B) {

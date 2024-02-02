@@ -5,6 +5,7 @@ Alternative flat binary format for [Protobuf schema](https://protobuf.dev/progra
 |  | Data Size | Decode + Traverse | Decode + Traverse(reflection) |
 |:-----|----:|-----:|-----:|
 | Protobuf | 574B | 11451ns | 25458ns |
+| vtprotobuf | 574B | 5029ns | 19907ns |
 | ProtoCache  | 780B  | 1121ns | 2266ns |
 | FlatBuffers | 1296B | 2191ns | No Go Api |
 
