@@ -59,51 +59,52 @@ import (
 		junk.traverseFbMain(root)
 		fmt.Println(junk.fuse())
 	}
-
-	func BenchmarkProtobufVT(b *testing.B) {
-		b.StopTimer()
-		raw, err := os.ReadFile("test.pb")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		var junk Junk
-		b.StartTimer()
-		for i := 0; i < b.N; i++ {
-			root := &pb.Main{}
-			err = root.UnmarshalVT(raw)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			junk.traversePbMain(root)
-		}
-		// b.StopTimer()
-		// fmt.Println(junk.fuse())
-	}
-
-	func BenchmarkProtobufVTReflect(b *testing.B) {
-		b.StopTimer()
-		raw, err := os.ReadFile("test.pb")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		var junk Junk
-		b.StartTimer()
-		for i := 0; i < b.N; i++ {
-			root := &pb.Main{}
-			err = root.UnmarshalVT(raw)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			junk.traversePbMessage(root.ProtoReflect())
-		}
-		// b.StopTimer()
-		// fmt.Println(junk.fuse())
-	}
 */
+
+func BenchmarkProtobufVT(b *testing.B) {
+	b.StopTimer()
+	raw, err := os.ReadFile("test.pb")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	var junk Junk
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		root := &pb.Main{}
+		err = root.UnmarshalVT(raw)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		junk.traversePbMain(root)
+	}
+	// b.StopTimer()
+	// fmt.Println(junk.fuse())
+}
+
+func BenchmarkProtobufVTReflect(b *testing.B) {
+	b.StopTimer()
+	raw, err := os.ReadFile("test.pb")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	var junk Junk
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		root := &pb.Main{}
+		err = root.UnmarshalVT(raw)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		junk.traversePbMessage(root.ProtoReflect())
+	}
+	// b.StopTimer()
+	// fmt.Println(junk.fuse())
+}
+
 func BenchmarkProtobuf(b *testing.B) {
 	b.StopTimer()
 	raw, err := os.ReadFile("test.pb")
@@ -165,23 +166,24 @@ func BenchmarkProtoCache(b *testing.B) {
 	// fmt.Println(junk.fuse())
 }
 
-func BenchmarkFlatbuffers(b *testing.B) {
-	b.StopTimer()
-	raw, err := os.ReadFile("test.fb")
-	if err != nil {
-		fmt.Println(err)
-		return
+/*
+	func BenchmarkFlatbuffers(b *testing.B) {
+		b.StopTimer()
+		raw, err := os.ReadFile("test.fb")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		var junk Junk
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			root := fb.GetRootAsMain(raw, 0)
+			junk.traverseFbMain(root)
+		}
+		// b.StopTimer()
+		// fmt.Println(junk.fuse())
 	}
-	var junk Junk
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		root := fb.GetRootAsMain(raw, 0)
-		junk.traverseFbMain(root)
-	}
-	// b.StopTimer()
-	// fmt.Println(junk.fuse())
-}
-
+*/
 type Junk struct {
 	u32 uint32
 	f32 float32
@@ -380,117 +382,118 @@ func (p *Junk) traversePcMain(root pc.Main) {
 		}
 	}
 }
+
 /*
-func (p *Junk) traverseFbSmall(root *fb.Small) {
-	p.u32 += uint32(root.I32())
-	p.consumeBool(root.Flag())
-	p.consumeBytes(root.Str())
-}
+	func (p *Junk) traverseFbSmall(root *fb.Small) {
+		p.u32 += uint32(root.I32())
+		p.consumeBool(root.Flag())
+		p.consumeBytes(root.Str())
+	}
 
-func (p *Junk) traverseFbVec2D(root *fb.Vec2D) {
-	var unit fb.Vec1D
-	for i := 0; i < root.AliasLength(); i++ {
-		root.Alias(&unit, i)
-		for j := 0; j < unit.AliasLength(); j++ {
-			p.f32 += unit.Alias(j)
+	func (p *Junk) traverseFbVec2D(root *fb.Vec2D) {
+		var unit fb.Vec1D
+		for i := 0; i < root.AliasLength(); i++ {
+			root.Alias(&unit, i)
+			for j := 0; j < unit.AliasLength(); j++ {
+				p.f32 += unit.Alias(j)
+			}
 		}
 	}
-}
 
-func (p *Junk) traverseFbArrMap(root *fb.ArrMap) {
-	var unit fb.Array
-	var pair fb.ArrMapEntry
-	for i := 0; i < root.AliasLength(); i++ {
-		root.Alias(&pair, i)
-		p.consumeBytes(pair.Key())
-		pair.Value(&unit)
-		for j := 0; j < unit.AliasLength(); j++ {
-			p.f32 += unit.Alias(j)
+	func (p *Junk) traverseFbArrMap(root *fb.ArrMap) {
+		var unit fb.Array
+		var pair fb.ArrMapEntry
+		for i := 0; i < root.AliasLength(); i++ {
+			root.Alias(&pair, i)
+			p.consumeBytes(pair.Key())
+			pair.Value(&unit)
+			for j := 0; j < unit.AliasLength(); j++ {
+				p.f32 += unit.Alias(j)
+			}
 		}
 	}
-}
 
-func (p *Junk) traverseFbMain(root *fb.Main) {
-	p.u32 += uint32(root.I32()) + root.U32() + uint32(root.Mode())
-	p.consumeBool(root.Flag())
-	p.u32 += uint32(root.TI32()) + uint32(root.TS32()) + root.TU32()
-	for i := 0; i < root.I32vLength(); i++ {
-		p.u32 += uint32(root.I32v(i))
-	}
-	p.u64 += uint64(root.I64()) + root.U64() +
-		uint64(root.TI64()) + uint64(root.TS64()) + root.TU64()
-	for i := 0; i < root.U64vLength(); i++ {
-		p.u64 += root.U64v(i)
-	}
-	for i := 0; i < root.FlagsLength(); i++ {
-		p.consumeBool(root.Flags(i))
-	}
-	p.consumeBytes(root.Str())
+	func (p *Junk) traverseFbMain(root *fb.Main) {
+		p.u32 += uint32(root.I32()) + root.U32() + uint32(root.Mode())
+		p.consumeBool(root.Flag())
+		p.u32 += uint32(root.TI32()) + uint32(root.TS32()) + root.TU32()
+		for i := 0; i < root.I32vLength(); i++ {
+			p.u32 += uint32(root.I32v(i))
+		}
+		p.u64 += uint64(root.I64()) + root.U64() +
+			uint64(root.TI64()) + uint64(root.TS64()) + root.TU64()
+		for i := 0; i < root.U64vLength(); i++ {
+			p.u64 += root.U64v(i)
+		}
+		for i := 0; i < root.FlagsLength(); i++ {
+			p.consumeBool(root.Flags(i))
+		}
+		p.consumeBytes(root.Str())
 
-	data := make([]byte, root.DataLength())
-	for i := 0; i < len(data); i++ {
-		data[i] = byte(root.Data(i))
-	}
-	p.consumeBytes(data)
-	for i := 0; i < root.StrvLength(); i++ {
-		p.consumeBytes(root.Strv(i))
-	}
-
-	var bytes fb.Bytes
-	for i := 0; i < root.DatavLength(); i++ {
-		root.Datav(&bytes, i)
-		data := make([]byte, bytes.AliasLength())
+		data := make([]byte, root.DataLength())
 		for i := 0; i < len(data); i++ {
-			data[i] = byte(bytes.Alias(i))
+			data[i] = byte(root.Data(i))
 		}
 		p.consumeBytes(data)
-	}
+		for i := 0; i < root.StrvLength(); i++ {
+			p.consumeBytes(root.Strv(i))
+		}
 
-	p.f32 += root.F32()
-	for i := 0; i < root.F32vLength(); i++ {
-		p.f32 += root.F32v(i)
-	}
-	p.f64 += root.F64()
-	for i := 0; i < root.F64vLength(); i++ {
-		p.f64 += root.F64v(i)
-	}
+		var bytes fb.Bytes
+		for i := 0; i < root.DatavLength(); i++ {
+			root.Datav(&bytes, i)
+			data := make([]byte, bytes.AliasLength())
+			for i := 0; i < len(data); i++ {
+				data[i] = byte(bytes.Alias(i))
+			}
+			p.consumeBytes(data)
+		}
 
-	var small fb.Small
-	root.Object(&small)
-	p.traverseFbSmall(&small)
-	for i := 0; i < root.ObjectvLength(); i++ {
-		root.Objectv(&small, i)
+		p.f32 += root.F32()
+		for i := 0; i < root.F32vLength(); i++ {
+			p.f32 += root.F32v(i)
+		}
+		p.f64 += root.F64()
+		for i := 0; i < root.F64vLength(); i++ {
+			p.f64 += root.F64v(i)
+		}
+
+		var small fb.Small
+		root.Object(&small)
 		p.traverseFbSmall(&small)
-	}
+		for i := 0; i < root.ObjectvLength(); i++ {
+			root.Objectv(&small, i)
+			p.traverseFbSmall(&small)
+		}
 
-	var pair1 fb.Map1Entry
-	for i := 0; i < root.IndexLength(); i++ {
-		root.Index(&pair1, i)
-		p.consumeBytes(pair1.Key())
-		p.u32 += uint32(pair1.Value())
-	}
+		var pair1 fb.Map1Entry
+		for i := 0; i < root.IndexLength(); i++ {
+			root.Index(&pair1, i)
+			p.consumeBytes(pair1.Key())
+			p.u32 += uint32(pair1.Value())
+		}
 
-	var pair2 fb.Map2Entry
-	for i := 0; i < root.ObjectsLength(); i++ {
-		root.Objects(&pair2, i)
-		p.u32 += uint32(pair2.Key())
-		pair2.Value(&small)
-		p.traverseFbSmall(&small)
-	}
+		var pair2 fb.Map2Entry
+		for i := 0; i < root.ObjectsLength(); i++ {
+			root.Objects(&pair2, i)
+			p.u32 += uint32(pair2.Key())
+			pair2.Value(&small)
+			p.traverseFbSmall(&small)
+		}
 
-	var vec2d fb.Vec2D
-	root.Matrix(&vec2d)
-	p.traverseFbVec2D(&vec2d)
+		var vec2d fb.Vec2D
+		root.Matrix(&vec2d)
+		p.traverseFbVec2D(&vec2d)
 
-	var arrMap fb.ArrMap
-	for i := 0; i < root.VectorLength(); i++ {
-		root.Vector(&arrMap, i)
+		var arrMap fb.ArrMap
+		for i := 0; i < root.VectorLength(); i++ {
+			root.Vector(&arrMap, i)
+			p.traverseFbArrMap(&arrMap)
+		}
+		root.Arrays(&arrMap)
 		p.traverseFbArrMap(&arrMap)
 	}
-	root.Arrays(&arrMap)
-	p.traverseFbArrMap(&arrMap)
-}
-
+*/
 func (p *Junk) traversePbMessage(root protoreflect.Message) {
 	consume := func(field protoreflect.FieldDescriptor, value protoreflect.Value) {
 		switch field.Kind() {
@@ -591,4 +594,3 @@ func (p *Junk) traversePbMessage(root protoreflect.Message) {
 		}
 	}
 }
-*/
