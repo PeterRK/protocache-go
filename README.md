@@ -7,7 +7,7 @@ Alternative flat binary format for [Protobuf schema](https://protobuf.dev/progra
 | Protobuf | 574B | 11451ns | 25458ns |
 | vtprotobuf | 574B | 5029ns | 19907ns |
 | ProtoCache  | 780B  | 1121ns | 2266ns |
-| FlatBuffers | 1296B | 2191ns | No Go Api |
+| FlatBuffers | 1296B | 2191ns | No Go API |
 
 See detail in [C++ version](https://github.com/peterrk/protocache).
 
