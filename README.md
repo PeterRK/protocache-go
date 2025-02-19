@@ -4,10 +4,10 @@ Alternative flat binary format for [Protobuf schema](https://protobuf.dev/progra
 
 |  | Data Size | Decode + Traverse | Decode + Traverse(reflection) |
 |:-----|----:|-----:|-----:|
-| Protobuf | 574B | 11451ns | 25458ns |
-| vtprotobuf | 574B | 5029ns | 19907ns |
-| ProtoCache  | 780B  | 1121ns | 2266ns |
-| FlatBuffers | 1296B | 2191ns | No Go API |
+| Protobuf | 574B | 5998ns | 12480ns |
+| vtprotobuf | 574B | 3359ns | 10294ns |
+| ProtoCache  | 780B  | 586ns | 1260ns |
+| FlatBuffers | 1296B | 1129ns | No Go API |
 
 See detail in [C++ version](https://github.com/peterrk/protocache).
 
