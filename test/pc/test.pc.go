@@ -15,7 +15,7 @@ const (
 const (
 	_FIELD_Small_i32  uint16 = 0
 	_FIELD_Small_flag uint16 = 1
-	_FIELD_Small_str  uint16 = 2
+	_FIELD_Small_str  uint16 = 3
 )
 
 type Small struct{ core protocache.Message }
@@ -250,6 +250,48 @@ func (m *Main) GetVector() ARRAY_ArrMap {
 func (m *Main) GetArrays() ArrMap {
 	field := m.core.GetField(_FIELD_Main_arrays)
 	return AS_ArrMap(field.GetObject())
+}
+
+const (
+	_FIELD_CyclicA_value  uint16 = 0
+	_FIELD_CyclicA_cyclic uint16 = 1
+)
+
+type CyclicA struct{ core protocache.Message }
+
+func AS_CyclicA(data []byte) CyclicA { return CyclicA{core: protocache.AsMessage(data)} }
+
+func (m *CyclicA) IsValid() bool { return m.core.IsValid() }
+
+func (m *CyclicA) GetValue() int32 {
+	field := m.core.GetField(_FIELD_CyclicA_value)
+	return field.GetInt32()
+}
+
+func (m *CyclicA) GetCyclic() CyclicB {
+	field := m.core.GetField(_FIELD_CyclicA_cyclic)
+	return AS_CyclicB(field.GetObject())
+}
+
+const (
+	_FIELD_CyclicB_value  uint16 = 0
+	_FIELD_CyclicB_cyclic uint16 = 1
+)
+
+type CyclicB struct{ core protocache.Message }
+
+func AS_CyclicB(data []byte) CyclicB { return CyclicB{core: protocache.AsMessage(data)} }
+
+func (m *CyclicB) IsValid() bool { return m.core.IsValid() }
+
+func (m *CyclicB) GetValue() int32 {
+	field := m.core.GetField(_FIELD_CyclicB_value)
+	return field.GetInt32()
+}
+
+func (m *CyclicB) GetCyclic() CyclicA {
+	field := m.core.GetField(_FIELD_CyclicB_cyclic)
+	return AS_CyclicA(field.GetObject())
 }
 
 type ARRAY_ArrMap struct{ core protocache.Array }

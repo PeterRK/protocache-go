@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/peterrk/slices"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -31,32 +30,31 @@ func serializeMessage(message protoreflect.Message) ([]uint32, error) {
 	if originFields.Len() <= 0 {
 		return nil, fmt.Errorf("no fields in %s", descriptor.FullName())
 	}
-	temp := make([]protoreflect.FieldDescriptor, originFields.Len())
-	for i := 0; i < len(temp); i++ {
-		temp[i] = originFields.Get(i)
-	}
-	order := slices.Order[protoreflect.FieldDescriptor]{
-		Less: func(a, b protoreflect.FieldDescriptor) bool {
-			return a.Number() < b.Number()
-		}}
-	order.Sort(temp)
-
-	if temp[0].Number() <= 0 {
-		panic("illegal message")
-	}
-	maxId := int(temp[len(temp)-1].Number())
-	if (maxId-len(temp)) > 6 && maxId > len(temp)*2 {
-		return nil, fmt.Errorf("message %s is too sparse", descriptor.FullName())
+	maxId := 1
+	for i := 0; i < originFields.Len(); i++ {
+		field := originFields.Get(i)
+		if field == nil || field.Number() <= 0 {
+			return nil, fmt.Errorf("illegal field in %s", descriptor.FullName())
+		}
+		if maxId < int(field.Number()) {
+			maxId = int(field.Number())
+		}
 	}
 	if maxId > (12 + 25*255) {
 		return nil, fmt.Errorf("too many fields in %s", descriptor.FullName())
+	} else if maxId-originFields.Len() > 6 && maxId > originFields.Len()*2 {
+		return nil, fmt.Errorf("message %s is too sparse", descriptor.FullName())
 	}
 
 	fields := make([]protoreflect.FieldDescriptor, maxId)
-	for _, one := range temp {
-		fields[one.Number()-1] = one
+	for i := 0; i < originFields.Len(); i++ {
+		field := originFields.Get(i)
+		j := field.Number() - 1
+		if fields[j] != nil {
+			return nil, fmt.Errorf("duplicate field id %d in %s", field.Number(), descriptor.FullName())
+		}
+		fields[j] = field
 	}
-
 	parts := make([][]uint32, len(fields))
 	for i, field := range fields {
 		if field == nil || !message.Has(field) {

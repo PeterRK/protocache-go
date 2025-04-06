@@ -15,7 +15,7 @@ See detail in [C++ version](https://github.com/peterrk/protocache).
 ```sh
 protoc --pcgo_out=. test.proto
 ```
-A protobuf compiler plugin called `protoc-gen-pcgo` is [available](cmd/protoc-gen-pcgo) to generate Go file. The generated file is short and human friendly. Don't mind to edit it if nessasery.
+A protobuf compiler plugin called `protoc-gen-pcgo` is [available](cmd/protoc-gen-pcgo) to generate Go file.
 
 ## Basic APIs
 ```go
@@ -25,7 +25,7 @@ assert(t, err == nil)
 root := pc.AS_Main(raw)
 assert(t, root.IsValid())
 ```
-Serializing a protobuf message with protocache.Serialize is the only way to create protocache binary at present. It's easy to access by wrapping the data with generated code.
+Serializing a protobuf message with `protocache.Serialize` is the only way to create protocache binary at present. It's easy to access by wrapping the data with generated code.
 
 ## Reflection
 ```go
