@@ -7,12 +7,46 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/peterrk/protocache-go"
 	//"github.com/peterrk/protocache-go/test/fb"
 	"github.com/peterrk/protocache-go/test/pb"
 	"github.com/peterrk/protocache-go/test/pc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+func BenchmarkCompress(b *testing.B) {
+	b.StopTimer()
+	raw, err := os.ReadFile("test.pc")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		protocache.Compress(raw)
+	}
+}
+
+func BenchmarkDecompress(b *testing.B) {
+	b.StopTimer()
+	raw, err := os.ReadFile("test.pc")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	raw = protocache.Compress(raw)
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := protocache.Decompress(raw)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+}
 
 /*
 	func TestProtoCacheBenchmark(t *testing.T) {

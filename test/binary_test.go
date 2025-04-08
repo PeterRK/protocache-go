@@ -139,3 +139,20 @@ func TestProtoCache(t *testing.T) {
 	assert(t, val4.Get(0) == 51)
 	assert(t, val4.Get(1) == 52)
 }
+
+func TestCompress(t *testing.T) {
+	raw, err := os.ReadFile("test.json")
+	assert(t, err == nil)
+
+	message := &pb.Main{}
+	err = protojson.Unmarshal(raw, message)
+	assert(t, err == nil)
+
+	raw, err = protocache.Serialize(message)
+	assert(t, err == nil)
+
+	cooked := protocache.Compress(raw)
+	assert(t, len(cooked) != 0 && len(cooked) < len(raw))
+	back, err := protocache.Decompress(cooked)
+	assert(t, err == nil && bytes.Equal(raw, back))
+}
