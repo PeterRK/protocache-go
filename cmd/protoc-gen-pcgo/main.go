@@ -294,9 +294,18 @@ func GenMessages(g *protogen.GeneratedFile, imports map[string]string,
 			continue
 		}
 
+		fields := make([]*protogen.Field, len(one.Fields))
+		copy(fields, one.Fields)
+		order := slices.Order[*protogen.Field]{
+			Less: func(a, b *protogen.Field) bool {
+				return a.Desc.Number() < b.Desc.Number()
+			},
+		}
+		order.Sort(fields)
+
 		g.P()
 		g.P("const (")
-		for _, field := range one.Fields {
+		for _, field := range fields {
 			g.P("	_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), " uint16 = ", field.Desc.Number()-1)
 		}
 		g.P(")")
@@ -329,7 +338,7 @@ func GenMessages(g *protogen.GeneratedFile, imports map[string]string,
 			g.P("}")
 		}
 
-		for _, field := range one.Fields {
+		for _, field := range fields {
 			desc := field.Desc
 			g.P()
 			if desc.IsMap() {

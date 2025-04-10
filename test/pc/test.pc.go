@@ -16,6 +16,7 @@ const (
 	_FIELD_Small_i32  uint16 = 0
 	_FIELD_Small_flag uint16 = 1
 	_FIELD_Small_str  uint16 = 3
+	_FIELD_Small_junk uint16 = 4
 )
 
 type Small struct{ core protocache.Message }
@@ -37,6 +38,11 @@ func (m *Small) GetFlag() bool {
 func (m *Small) GetStr() string {
 	field := m.core.GetField(_FIELD_Small_str)
 	return field.GetString()
+}
+
+func (m *Small) GetJunk() int64 {
+	field := m.core.GetField(_FIELD_Small_junk)
+	return field.GetInt64()
 }
 
 type Vec2D_Vec1D = protocache.Float32Array
@@ -292,6 +298,38 @@ func (m *CyclicB) GetValue() int32 {
 func (m *CyclicB) GetCyclic() CyclicA {
 	field := m.core.GetField(_FIELD_CyclicB_cyclic)
 	return AS_CyclicA(field.GetObject())
+}
+
+const (
+	_FIELD_Deprecated_Valid_val uint16 = 0
+)
+
+type Deprecated_Valid struct{ core protocache.Message }
+
+func AS_Deprecated_Valid(data []byte) Deprecated_Valid {
+	return Deprecated_Valid{core: protocache.AsMessage(data)}
+}
+
+func (m *Deprecated_Valid) IsValid() bool { return m.core.IsValid() }
+
+func (m *Deprecated_Valid) GetVal() int32 {
+	field := m.core.GetField(_FIELD_Deprecated_Valid_val)
+	return field.GetInt32()
+}
+
+const (
+	_FIELD_Deprecated_junk uint16 = 0
+)
+
+type Deprecated struct{ core protocache.Message }
+
+func AS_Deprecated(data []byte) Deprecated { return Deprecated{core: protocache.AsMessage(data)} }
+
+func (m *Deprecated) IsValid() bool { return m.core.IsValid() }
+
+func (m *Deprecated) GetJunk() int32 {
+	field := m.core.GetField(_FIELD_Deprecated_junk)
+	return field.GetInt32()
 }
 
 type ARRAY_ArrMap struct{ core protocache.Array }
