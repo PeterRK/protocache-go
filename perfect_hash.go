@@ -155,13 +155,13 @@ type unsigned interface {
 
 type vertex[T unsigned] struct {
 	slot T
+	prev T
 	next T
 }
 
 type graph[T unsigned] struct {
 	edges [][3]vertex[T]
 	nodes []T
-	sizes []uint8
 }
 
 type KeySource interface {
@@ -172,7 +172,6 @@ type KeySource interface {
 
 func (g *graph[T]) init(seed uint32, src KeySource) bool {
 	setAll(castToBytes(g.nodes))
-	clearAll(castToBytes(g.sizes))
 
 	section := uint32(len(g.nodes) / 3)
 	total := src.Total()
@@ -186,11 +185,11 @@ func (g *graph[T]) init(seed uint32, src KeySource) bool {
 		for j := 0; j < 3; j++ {
 			v := &g.edges[i][j]
 			v.slot = T(code[j])
+			v.prev = ^T(0)
 			v.next = g.nodes[v.slot]
 			g.nodes[v.slot] = T(i)
-			g.sizes[v.slot]++
-			if g.sizes[v.slot] > 50 {
-				return false
+			if v.next != ^T(0) {
+				g.edges[v.next][j].prev = T(i)
 			}
 		}
 	}
@@ -204,7 +203,8 @@ func (g *graph[T]) tear(free []T, book []byte) []T {
 		edge := g.edges[i]
 		for j := 0; j < 3; j++ {
 			v := edge[j]
-			if g.sizes[v.slot] == 1 && testAndSetBit(book, uint32(i)) {
+			if v.prev == ^T(0) && v.next == ^T(0) &&
+				testAndSetBit(book, uint32(i)) {
 				free = append(free, T(i))
 			}
 		}
@@ -213,15 +213,20 @@ func (g *graph[T]) tear(free []T, book []byte) []T {
 		curr := free[head]
 		for j := 0; j < 3; j++ {
 			v := &g.edges[curr][j]
-			p := &g.nodes[v.slot]
-			for *p != curr {
-				p = &g.edges[*p][j].next
+			i := ^T(0)
+			if v.prev != ^T(0) {
+				i = v.prev
+				g.edges[i][j].next = v.next
 			}
-			*p = v.next
-			v.next = ^T(0)
-			g.sizes[v.slot]--
-			i := g.nodes[v.slot]
-			if g.sizes[v.slot] == 1 && testAndSetBit(book, uint32(i)) {
+			if v.next != ^T(0) {
+				i = v.next
+				g.edges[i][j].prev = v.prev
+			}
+			if i == ^T(0) {
+				continue
+			}
+			u := &g.edges[i][j]
+			if u.prev == ^T(0) && u.next == ^T(0) && testAndSetBit(book, uint32(i)) {
 				free = append(free, i)
 			}
 		}
@@ -282,7 +287,6 @@ func build[T unsigned](src KeySource) []byte {
 	g := graph[T]{
 		edges: make([][3]vertex[T], size),
 		nodes: make([]T, slotCnt),
-		sizes: make([]uint8, slotCnt),
 	}
 	free := make([]T, 0, size)
 	book := make([]byte, (slotCnt+7)/8)
