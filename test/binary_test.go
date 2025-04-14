@@ -2,6 +2,7 @@ package test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"os"
 	"testing"
 
@@ -138,6 +139,23 @@ func TestProtoCache(t *testing.T) {
 	assert(t, val4.Size() == 2)
 	assert(t, val4.Get(0) == 51)
 	assert(t, val4.Get(1) == 52)
+}
+
+func TestAlias(t *testing.T) {
+	raw, err := os.ReadFile("test-alias.json")
+	assert(t, err == nil)
+
+	message := &pb.Main{}
+	err = protojson.Unmarshal(raw, message)
+	assert(t, err == nil)
+
+	raw, err = protocache.Serialize(message)
+	assert(t, err == nil)
+
+	assert(t, len(raw) == 48)
+	assert(t, binary.LittleEndian.Uint32(raw[16:]) == 0x0d)
+	assert(t, binary.LittleEndian.Uint32(raw[20:]) == 1)
+	assert(t, binary.LittleEndian.Uint32(raw[24:]) == 1)
 }
 
 func TestCompress(t *testing.T) {

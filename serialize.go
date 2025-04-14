@@ -67,21 +67,30 @@ func serializeMessage(message protoreflect.Message) ([]uint32, error) {
 			parts[i], err = serializeList(field, message.Get(field).List())
 		} else {
 			parts[i], err = serializeField(field, message.Get(field))
+			if len(parts[i]) == 1 && field.Kind() == protoreflect.MessageKind {
+				parts[i] = nil
+			}
 		}
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	if len(fields) == 1 && fields[0].Name() == "_" {
+		if len(parts[0]) == 0 {
+			if fields[0].IsMap() {
+				parts[0] = []uint32{5 << 28}
+			} else {
+				parts[0] = []uint32{1}
+			}
+		}
+		return parts[0], nil
+	}
 	for len(parts) != 0 && parts[len(parts)-1] == nil {
 		parts = parts[:len(parts)-1]
 	}
-
 	if len(parts) == 0 {
-		return make([]uint32, 1), nil
-	}
-	if len(fields) == 1 && fields[0].Name() == "_" {
-		return parts[0], nil
+		return []uint32{0}, nil
 	}
 
 	section := (uint32(len(parts)) + 12) / 25
