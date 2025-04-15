@@ -170,7 +170,7 @@ type KeySource interface {
 	Next() []byte
 }
 
-func (g *graph[T]) init(seed uint32, src KeySource) bool {
+func (g *graph[T]) init(seed uint32, src KeySource) {
 	setAll(castToBytes(g.nodes))
 
 	section := uint32(len(g.nodes) / 3)
@@ -193,7 +193,6 @@ func (g *graph[T]) init(seed uint32, src KeySource) bool {
 			}
 		}
 	}
-	return true
 }
 
 func (g *graph[T]) tear(free []T, book []byte) []T {
@@ -300,9 +299,7 @@ func build[T unsigned](src KeySource) []byte {
 	for ; chance >= 0; chance-- {
 		seed := xs.next()
 		putUint32(out[4:8], seed)
-		if !g.init(seed, src) {
-			continue
-		}
+		g.init(seed, src)
 		free = g.tear(free, book)
 		if len(free) != total {
 			continue
