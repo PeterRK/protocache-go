@@ -56,9 +56,11 @@ func TestPerfectHashTiny(t *testing.T) {
 
 func TestPerfectHashSmall(t *testing.T) {
 	testPerfectHash(t, 200)
+	testPerfectHash(t, 255)
 	testPerfectHash(t, 1000)
 }
 
 func TestPerfectHashBig(t *testing.T) {
+	testPerfectHash(t, 65535)
 	testPerfectHash(t, 100000)
 }

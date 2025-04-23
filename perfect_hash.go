@@ -176,18 +176,18 @@ func (g *graph[T]) init(seed uint32, src KeySource) {
 	section := uint32(len(g.nodes) / 3)
 	total := src.Total()
 	src.Reset()
+	shift := [3]uint32{0, section, section * 2}
 	for i := 0; i < total; i++ {
 		key := src.Next()
 		code := hash96(seed, key)
-		code[0] %= section
-		code[1] = code[1]%section + section
-		code[2] = code[2]%section + section*2
 		for j := 0; j < 3; j++ {
 			v := &g.edges[i][j]
-			v.slot = T(code[j])
+			slot := code[j] % section
+			v.slot = T(slot)
+			slot += shift[j]
 			v.prev = ^T(0)
-			v.next = g.nodes[v.slot]
-			g.nodes[v.slot] = T(i)
+			v.next = g.nodes[slot]
+			g.nodes[slot] = T(i)
 			if v.next != ^T(0) {
 				g.edges[v.next][j].prev = T(i)
 			}
@@ -236,11 +236,12 @@ func (g *graph[T]) tear(free []T, book []byte) []T {
 func (g *graph[T]) mapping(free []T, book []byte, bitmap []byte) {
 	clearAll(book)
 	setAll(bitmap)
+	section := uint32(len(g.nodes) / 3)
 	for i := len(free) - 1; i >= 0; i-- {
 		edge := g.edges[free[i]]
 		a := uint32(edge[0].slot)
-		b := uint32(edge[1].slot)
-		c := uint32(edge[2].slot)
+		b := uint32(edge[1].slot) + section
+		c := uint32(edge[2].slot) + section*2
 		switch {
 		case testAndSetBit(book, a):
 			setBit(book, b)
