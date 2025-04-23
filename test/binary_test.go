@@ -152,10 +152,10 @@ func TestAlias(t *testing.T) {
 	raw, err = protocache.Serialize(message)
 	assert(t, err == nil)
 
-	assert(t, len(raw) == 48)
-	assert(t, binary.LittleEndian.Uint32(raw[16:]) == 0x0d)
-	assert(t, binary.LittleEndian.Uint32(raw[20:]) == 1)
+	assert(t, len(raw) == 68)
+	assert(t, binary.LittleEndian.Uint32(raw[20:]) == 0x0d)
 	assert(t, binary.LittleEndian.Uint32(raw[24:]) == 1)
+	assert(t, binary.LittleEndian.Uint32(raw[28:]) == 1)
 }
 
 func TestCompress(t *testing.T) {

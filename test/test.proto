@@ -65,6 +65,7 @@ message Main {
     Vec2D matrix = 28;
     repeated ArrMap vector = 29;
     ArrMap arrays = 30;
+    repeated Mode modev = 32;
 }
 
 message CyclicA {
@@ -82,4 +83,11 @@ message Deprecated {
     message Valid {
         int32 val = 1;
     }
+}
+
+message ModeDict {
+    message Value {
+        repeated Mode _ = 1;
+    }
+    map<int32, Value> _ = 1;
 }

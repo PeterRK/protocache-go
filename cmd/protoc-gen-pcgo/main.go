@@ -395,7 +395,7 @@ func GenMessages(g *protogen.GeneratedFile, imports map[string]string,
 					typeName := pkgPrefix + field.Enum.GoIdent.GoName
 					g.P("func (m *", one.GoIdent.GoName, ") Get", field.GoName, "() []", typeName, " {")
 					g.P("	field := m.core.GetField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
-					g.P("	return field.GetEnumArray[", typeName, "]()")
+					g.P("	return protocache.CastEnumArray[", typeName, "](field.GetEnumValueArray())")
 					g.P("}")
 				default:
 					return fmt.Errorf("unsupported type: %v", desc.Kind())

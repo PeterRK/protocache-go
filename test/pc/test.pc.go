@@ -100,6 +100,7 @@ const (
 	_FIELD_Main_matrix  uint16 = 27
 	_FIELD_Main_vector  uint16 = 28
 	_FIELD_Main_arrays  uint16 = 29
+	_FIELD_Main_modev   uint16 = 31
 )
 
 type Main struct{ core protocache.Message }
@@ -258,6 +259,11 @@ func (m *Main) GetArrays() ArrMap {
 	return AS_ArrMap(field.GetObject())
 }
 
+func (m *Main) GetModev() []Mode {
+	field := m.core.GetField(_FIELD_Main_modev)
+	return protocache.CastEnumArray[Mode](field.GetEnumValueArray())
+}
+
 const (
 	_FIELD_CyclicA_value  uint16 = 0
 	_FIELD_CyclicA_cyclic uint16 = 1
@@ -332,6 +338,18 @@ func (m *Deprecated) GetJunk() int32 {
 	return field.GetInt32()
 }
 
+type ModeDict_Value = protocache.EnumArray[Mode]
+
+func AS_ModeDict_Value(data []byte) ModeDict_Value {
+	return protocache.AsEnumArray[Mode](data)
+}
+
+type ModeDict = MAP_int32_ModeDict_Value
+
+func AS_ModeDict(data []byte) ModeDict {
+	return AS_MAP_int32_ModeDict_Value(data)
+}
+
 type ARRAY_ArrMap struct{ core protocache.Array }
 
 func AS_ARRAY_ArrMap(data []byte) ARRAY_ArrMap {
@@ -376,6 +394,31 @@ func (x *ARRAY_Vec2D_Vec1D) Get(i uint32) Vec2D_Vec1D {
 func (x *ARRAY_Vec2D_Vec1D) IsValid() bool { return x.core.IsValid() }
 
 func (x *ARRAY_Vec2D_Vec1D) Size() uint32 { return x.core.Size() }
+
+type MAP_int32_ModeDict_Value struct{ core protocache.Map }
+
+func AS_MAP_int32_ModeDict_Value(data []byte) MAP_int32_ModeDict_Value {
+	return MAP_int32_ModeDict_Value{core: protocache.AsMap(data)}
+}
+
+func (x *MAP_int32_ModeDict_Value) Key(i uint32) int32 {
+	field := x.core.Key(i)
+	return field.GetInt32()
+}
+
+func (x *MAP_int32_ModeDict_Value) Value(i uint32) ModeDict_Value {
+	field := x.core.Value(i)
+	return AS_ModeDict_Value(field.GetObject())
+}
+
+func (x *MAP_int32_ModeDict_Value) Find(key int32) (ModeDict_Value, bool) {
+	field := x.core.FindByInt32(key)
+	return AS_ModeDict_Value(field.GetObject()), field.IsValid()
+}
+
+func (x *MAP_int32_ModeDict_Value) IsValid() bool { return x.core.IsValid() }
+
+func (x *MAP_int32_ModeDict_Value) Size() uint32 { return x.core.Size() }
 
 type MAP_int32_Small struct{ core protocache.Map }
 

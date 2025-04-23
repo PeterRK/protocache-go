@@ -11,6 +11,10 @@ type Enum interface {
 	~int32
 }
 
+func CastEnumArray[T Enum](vec []EnumValue) []T {
+	return *(*[]T)(unsafe.Pointer(&vec))
+}
+
 func fullSizeSlice[T any](data []T) []T {
 	return unsafe.Slice(unsafe.SliceData(data), cap(data))
 }
