@@ -163,6 +163,9 @@ func (m *Main) GetObject() Small {
 	field := m.core.GetField(_FIELD_Main_object)
 	return AS_Small(field.GetObject())
 }
+func (m *Main) HasObject() bool {
+	return m.core.HasField(_FIELD_Main_object)
+}
 
 func (m *Main) GetI32V() []int32 {
 	field := m.core.GetField(_FIELD_Main_i32v)
@@ -284,6 +287,9 @@ func (m *CyclicA) GetCyclic() CyclicB {
 	field := m.core.GetField(_FIELD_CyclicA_cyclic)
 	return AS_CyclicB(field.GetObject())
 }
+func (m *CyclicA) HasCyclic() bool {
+	return m.core.HasField(_FIELD_CyclicA_cyclic)
+}
 
 const (
 	_FIELD_CyclicB_value  uint16 = 0
@@ -304,6 +310,9 @@ func (m *CyclicB) GetValue() int32 {
 func (m *CyclicB) GetCyclic() CyclicA {
 	field := m.core.GetField(_FIELD_CyclicB_cyclic)
 	return AS_CyclicA(field.GetObject())
+}
+func (m *CyclicB) HasCyclic() bool {
+	return m.core.HasField(_FIELD_CyclicB_cyclic)
 }
 
 const (

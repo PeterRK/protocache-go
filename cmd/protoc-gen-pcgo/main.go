@@ -409,6 +409,12 @@ func GenMessages(g *protogen.GeneratedFile, imports map[string]string,
 					g.P("	field := m.core.GetField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
 					g.P("	return ", pkgPrefix, "AS_", typeName, "(field.GetObject())")
 					g.P("}")
+
+					if _, hit := aliasBook[string(field.Message.Desc.FullName())]; !hit {
+						g.P("func (m *", one.GoIdent.GoName, ") Has", field.GoName, "() bool {")
+						g.P("	return m.core.HasField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
+						g.P("}")
+					}
 				case protoreflect.BytesKind:
 					handleSimpleField(field, "Bytes")
 				case protoreflect.StringKind:

@@ -203,7 +203,7 @@ func (m *Message) IsValid() bool {
 	return len(m.data) != 0
 }
 
-func (m *Message) HashField(id uint16) bool {
+func (m *Message) HasField(id uint16) bool {
 	if len(m.data) == 0 {
 		return false
 	}
