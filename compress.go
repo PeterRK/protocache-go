@@ -2,6 +2,7 @@ package protocache
 
 import (
 	"errors"
+	"unsafe"
 )
 
 func Compress(src []byte) []byte {
@@ -72,15 +73,14 @@ func Decompress(src []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return nil, nil
 	}
-	out := make([]byte, 0, len(src))
 
 	k := 0
-	size := uint32(0)
+	size := uintptr(0)
 	for sft := 0; sft < 32; sft += 7 {
 		if k >= len(src) {
 			return nil, errors.New("broken header")
 		}
-		b := uint32(src[k])
+		b := uintptr(src[k])
 		k++
 		if (b & 0x80) != 0 {
 			size |= (b & 0x7f) << sft
@@ -89,36 +89,65 @@ func Decompress(src []byte) ([]byte, error) {
 			break
 		}
 	}
+	out := make([]byte, size)
+
+	s := uintptr(unsafe.Pointer(&src[k]))
+	end := s + uintptr(len(src)-k)
+	dest := uintptr(unsafe.Pointer(&out[0]))
+	tail := dest + size
 
 	unpack := func(mark uint8) bool {
 		if (mark & 8) != 0 {
-			cnt := (mark & 3) + 1
-			ch := uint8(0)
-			if (mark & 4) != 0 {
-				ch = 0xff
-			}
-			for ; cnt != 0; cnt-- {
-				out = append(out, ch)
-			}
-		} else {
-			l := int(mark & 7)
-			if k+l > len(src) {
+			cnt := uintptr(mark&3) + 1
+			if dest+cnt > tail {
 				return false
 			}
-			out = append(out, src[k:k+l]...)
-			k += l
+			if (mark & 4) != 0 {
+				if dest+4 <= tail {
+					*(*uint32)(unsafe.Pointer(dest)) = 0xffffffff
+				} else {
+					for i := uintptr(0); i < cnt; i++ {
+						*(*byte)(unsafe.Pointer(dest + i)) = 0xff
+					}
+				}
+			} else {
+				if dest+4 <= tail {
+					*(*uint32)(unsafe.Pointer(dest)) = 0
+				} else {
+					for i := uintptr(0); i < cnt; i++ {
+						*(*byte)(unsafe.Pointer(dest + i)) = 0
+					}
+				}
+			}
+			dest += cnt
+
+		} else {
+			l := uintptr(mark & 7)
+			if s+l > end || dest+l > tail {
+				return false
+			}
+			if s+8 <= end && dest+8 <= tail {
+				*(*uint64)(unsafe.Pointer(dest)) = *(*uint64)(unsafe.Pointer(s))
+			} else {
+				for i := uintptr(0); i < l; i++ {
+					*(*byte)(unsafe.Pointer(dest + i)) = *(*byte)(unsafe.Pointer(s + i))
+				}
+			}
+			s += l
+			dest += l
+
 		}
 		return true
 	}
 
-	for k < len(src) {
-		mark := src[k]
-		k++
+	for s < end {
+		mark := *(*byte)(unsafe.Pointer(s))
+		s++
 		if !unpack(mark&0xf) || !unpack(mark>>4) {
 			return nil, errors.New("broken data")
 		}
 	}
-	if len(out) != int(size) {
+	if dest != tail {
 		return nil, errors.New("size mismatch")
 	}
 	return out, nil

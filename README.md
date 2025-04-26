@@ -2,12 +2,13 @@
 
 Alternative flat binary format for [Protobuf schema](https://protobuf.dev/programming-guides/proto3/). It' works like FlatBuffers, but it's usually smaller and surpports map. Flat means no deserialization overhead. [A benchmark](test/bench_test.go) shows the Protobuf has considerable deserialization overhead and significant reflection overhead. FlatBuffers is fast but wastes space. ProtoCache takes balance of data size and read speed, so it's useful in data caching.
 
-|  | Data Size | Decode + Traverse | Decode + Traverse(reflection) |
-|:-----|----:|-----:|-----:|
-| Protobuf | 574B | 5998ns | 12480ns |
-| vtprotobuf | 574B | 3359ns | 10294ns |
-| ProtoCache  | 780B  | 586ns | 1260ns |
-| FlatBuffers | 1296B | 1129ns | No Go API |
+|  | Protobuf | vtprotobuf | ProtoCache | FlatBuffers |
+|:-------|----:|----:|----:|----:|
+| Data Size | 574B | 574B | 780B | 1296B |
+| Compressed Size | 566B | 566B | 571B | 856B |
+| Decompress | 434ns | 434ns | 820ns | 1634ns |
+| Decode + Traverse | 5998ns | 3359ns | 586ns | 1129ns |
+| Decode + Traverse(reflection) | 12480ns | 10294ns | 1260ns | No Go API |
 
 See detail in [C++ version](https://github.com/peterrk/protocache).
 
