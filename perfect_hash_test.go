@@ -24,12 +24,6 @@ func (r *reader) Next() []byte {
 	return key
 }
 
-func assert(t *testing.T, state bool) {
-	if !state {
-		t.FailNow()
-	}
-}
-
 func testPerfectHash(t *testing.T, size int) {
 	keys := make([][]byte, size)
 	for i := 0; i < size; i++ {

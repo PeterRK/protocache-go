@@ -83,7 +83,7 @@ func (s *state) end() {
 	s.b += s.a
 }
 
-func Hash28(seed uint64, data []byte) [2]uint64 {
+func Hash128(seed uint64, data []byte) [2]uint64 {
 	const magic uint64 = 0xdeadbeefdeadbeef
 	s := state{seed, seed, magic, magic}
 	l := uint64(len(data))
@@ -157,6 +157,6 @@ func Hash28(seed uint64, data []byte) [2]uint64 {
 }
 
 func hash96(seed uint32, data []byte) [3]uint32 {
-	w := Hash28(uint64(seed), data)
+	w := Hash128(uint64(seed), data)
 	return [3]uint32{uint32(w[0]), uint32(w[0] >> 32), uint32(w[1])}
 }
