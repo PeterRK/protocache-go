@@ -26,7 +26,7 @@ import "C"
 
 func ParseProto(data []byte) (*pb.FileDescriptorProto, error) {
 	input := C.struct_Buffer{
-		data: C.ulong(uintptr(unsafe.Pointer(unsafe.SliceData(data)))),
+		data: C.uintptr_t(uintptr(unsafe.Pointer(unsafe.SliceData(data)))),
 		size: C.size_t(len(data)),
 	}
 	output := C.struct_Buffer{}
