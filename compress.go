@@ -76,18 +76,25 @@ func Decompress(src []byte) ([]byte, error) {
 
 	k := 0
 	size := uintptr(0)
-	for sft := 0; sft < 32; sft += 7 {
-		if k >= len(src) {
-			return nil, errors.New("broken header")
+	decodeLen := func() bool {
+		for sft := 0; sft < 32; sft += 7 {
+			if k >= len(src) {
+				return false
+			}
+			b := uintptr(src[k])
+			k++
+			if (b & 0x80) != 0 {
+				size |= (b & 0x7f) << sft
+			} else {
+				size |= b << sft
+				return true
+			}
 		}
-		b := uintptr(src[k])
-		k++
-		if (b & 0x80) != 0 {
-			size |= (b & 0x7f) << sft
-		} else {
-			size |= b << sft
-			break
-		}
+		return false
+	}
+
+	if !decodeLen() {
+		return nil, errors.New("broken header")
 	}
 	out := make([]byte, size)
 

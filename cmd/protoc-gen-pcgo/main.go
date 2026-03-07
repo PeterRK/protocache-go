@@ -272,7 +272,9 @@ func GenMessages(g *protogen.GeneratedFile, imports map[string]string,
 			continue
 		}
 		GenEnums(g, one.Enums)
-		GenMessages(g, imports, derived, one.Messages)
+		if err := GenMessages(g, imports, derived, one.Messages); err != nil {
+			return err
+		}
 
 		alias, ok := aliasBook[string(one.Desc.FullName())]
 		if ok {
