@@ -59,58 +59,58 @@ type Field struct {
 	data []byte
 }
 
-func (f *Field) IsValid() bool {
+func (f Field) IsValid() bool {
 	return len(f.data) != 0
 }
 
-func (f *Field) GetBool() bool {
+func (f Field) GetBool() bool {
 	if len(f.data) != 4 {
 		return false
 	}
 	return f.data[0] != 0
 }
 
-func (f *Field) GetEnumValue() EnumValue {
+func (f Field) GetEnumValue() EnumValue {
 	return EnumValue(f.GetUint32())
 }
 
-func (f *Field) GetUint32() uint32 {
+func (f Field) GetUint32() uint32 {
 	if len(f.data) != 4 {
 		return 0
 	}
 	return getUint32(f.data)
 }
 
-func (f *Field) GetInt32() int32 {
+func (f Field) GetInt32() int32 {
 	return int32(f.GetUint32())
 }
 
-func (f *Field) GetUint64() uint64 {
+func (f Field) GetUint64() uint64 {
 	if len(f.data) != 8 {
 		return 0
 	}
 	return getUint64(f.data)
 }
 
-func (f *Field) GetInt64() int64 {
+func (f Field) GetInt64() int64 {
 	return int64(f.GetUint64())
 }
 
-func (f *Field) GetFloat32() float32 {
+func (f Field) GetFloat32() float32 {
 	if len(f.data) != 4 {
 		return 0
 	}
 	return math.Float32frombits(getUint32(f.data))
 }
 
-func (f *Field) GetFloat64() float64 {
+func (f Field) GetFloat64() float64 {
 	if len(f.data) != 8 {
 		return 0
 	}
 	return math.Float64frombits(getUint64(f.data))
 }
 
-func (f *Field) GetObject() []byte {
+func (f Field) GetObject() []byte {
 	if len(f.data) < 4 {
 		return nil
 	}
@@ -125,67 +125,84 @@ func (f *Field) GetObject() []byte {
 	return fullSizeSlice(f.data)[off:]
 }
 
-func (f *Field) GetBytes() []byte {
+func (f Field) GetBytes() []byte {
 	return extractBytes(f.GetObject())
 }
 
-func (f *Field) GetString() string {
+func (f Field) GetString() string {
 	return extractString(f.GetObject())
 }
 
-func (f *Field) GetBoolArray() []bool {
+func (f Field) GetBoolArray() []bool {
 	return extractBoolArray(f.GetObject())
 }
 
-func (f *Field) GetEnumValueArray() []EnumValue {
+func (f Field) GetEnumValueArray() []EnumValue {
 	arr := AsArray(f.GetObject())
 	return arr.EnumValue()
 }
 
-func (f *Field) GetInt32Array() []int32 {
+func (f Field) GetInt32Array() []int32 {
 	arr := AsArray(f.GetObject())
 	return arr.Int32()
 }
 
-func (f *Field) GetUint32Array() []uint32 {
+func (f Field) GetUint32Array() []uint32 {
 	arr := AsArray(f.GetObject())
 	return arr.Uint32()
 }
 
-func (f *Field) GetInt64Array() []int64 {
+func (f Field) GetInt64Array() []int64 {
 	arr := AsArray(f.GetObject())
 	return arr.Int64()
 }
 
-func (f *Field) GetUint64Array() []uint64 {
+func (f Field) GetUint64Array() []uint64 {
 	arr := AsArray(f.GetObject())
 	return arr.Uint64()
 }
 
-func (f *Field) GetFloat32Array() []float32 {
+func (f Field) GetFloat32Array() []float32 {
 	arr := AsArray(f.GetObject())
 	return arr.Float32()
 }
 
-func (f *Field) GetFloat64Array() []float64 {
+func (f Field) GetFloat64Array() []float64 {
 	arr := AsArray(f.GetObject())
 	return arr.Float64()
 }
 
-func (f *Field) GetMessage() Message {
+func (f Field) GetMessage() Message {
 	return AsMessage(f.GetObject())
 }
 
-func (f *Field) GetArray() Array {
+func (f Field) GetArray() Array {
 	return AsArray(f.GetObject())
 }
 
-func (f *Field) GetMap() Map {
+func (f Field) GetMap() Map {
 	return AsMap(f.GetObject())
 }
 
 type Message struct {
 	data []byte
+}
+
+func count32(v uint32) uint32 {
+	v = (v & 0x33333333) + ((v >> 2) & 0x33333333)
+	v = v + (v >> 4)
+	v = (v & 0x0f0f0f0f) + ((v >> 8) & 0x0f0f0f0f)
+	v = v + (v >> 16)
+	return v & 0xff
+}
+
+func count64(v uint64) uint32 {
+	v = (v & 0x3333333333333333) + ((v >> 2) & 0x3333333333333333)
+	v = v + (v >> 4)
+	v = (v & 0x0f0f0f0f0f0f0f0f) + ((v >> 8) & 0x0f0f0f0f0f0f0f0f)
+	v = v + (v >> 16)
+	v = v + (v >> 32)
+	return uint32(v) & 0xff
 }
 
 func AsMessage(data []byte) Message {
@@ -222,47 +239,70 @@ func (m *Message) HasField(id uint16) bool {
 	return width != 0
 }
 
-func (m *Message) GetField(id uint16) Field {
+func (m *Message) locateField(id uint16) (off uint32, width uint32, ok bool) {
 	if len(m.data) == 0 {
-		return Field{}
+		return 0, 0, false
 	}
 	section := uint32(m.data[0])
-	off := 1 + section*2
-	width := uint32(0)
+	off = 1 + section*2
+	width = 0
 	if id < 12 {
 		v := getUint32(m.data) >> 8
 		width = (v >> (uint32(id) << 1)) & 3
 		if width == 0 {
-			return Field{}
+			return 0, 0, false
 		}
-		v &= ^(uint32(0xffffffff) << (uint32(id) << 1))
-		v = (v & 0x33333333) + ((v >> 2) & 0x33333333)
-		v = v + (v >> 4)
-		v = (v & 0xf0f0f0f) + ((v >> 8) & 0xf0f0f0f)
-		v = v + (v >> 16)
-		off += (v & 0xff)
+		off += count32(v & ^(uint32(0xffffffff) << (uint32(id) << 1)))
 	} else {
 		a, b := uint32((id-12)/25), uint32((id-12)%25)
 		if a >= section {
-			return Field{}
+			return 0, 0, false
 		}
 		v := getUint64(m.data[4+a*8:])
 		width = uint32(v>>(b<<1)) & 3
 		if width == 0 {
-			return Field{}
+			return 0, 0, false
 		}
 		off += uint32(v >> 50)
-		v &= ^(uint64(0xffffffffffffffff) << (b << 1))
-		v = (v & 0x3333333333333333) + ((v >> 2) & 0x3333333333333333)
-		v = v + (v >> 4)
-		v = (v & 0xf0f0f0f0f0f0f0f) + ((v >> 8) & 0xf0f0f0f0f0f0f0f)
-		v = v + (v >> 16)
-		v = v + (v >> 32)
-		off += (uint32(v) & 0xff)
+		off += count64(v & ^(uint64(0xffffffffffffffff) << (b << 1)))
 	}
 	off *= 4
 	width *= 4
 	if off+width > uint32(len(m.data)) {
+		return 0, 0, false
+	}
+	return off, width, true
+}
+
+func (m *Message) DetectInlined() []byte {
+	if len(m.data) == 0 {
+		return nil
+	}
+	section := uint16(m.data[0])
+	last := uint16(11)
+	if section != 0 {
+		last = 12 + section*25 - 1
+	}
+	off := uint32((1 + uint32(section)*2) * 4)
+	for {
+		if pos, width, ok := m.locateField(last); ok {
+			off = pos + width
+			break
+		}
+		if last == 0 {
+			break
+		}
+		last--
+	}
+	if off > uint32(len(m.data)) {
+		return nil
+	}
+	return m.data[:off]
+}
+
+func (m *Message) GetField(id uint16) Field {
+	off, width, ok := m.locateField(id)
+	if !ok {
 		return Field{}
 	}
 	return Field{data: m.data[off : off+width]}
@@ -664,4 +704,106 @@ func (a *BytesArray) Size() uint32 {
 func (a *BytesArray) Get(i uint32) []byte {
 	field := a.core.Get(i)
 	return field.GetBytes()
+}
+
+func DetectBytes(data []byte) []byte {
+	raw := extractBytes(data)
+	if raw == nil {
+		return nil
+	}
+	head := int(uintptr(unsafe.Pointer(unsafe.SliceData(raw))) - uintptr(unsafe.Pointer(unsafe.SliceData(data))))
+	size := (head + len(raw) + 3) &^ 3
+	if size > len(data) {
+		return nil
+	}
+	return data[:size]
+}
+
+// DetectObject returns the referenced object bytes for a non-inline object field.
+// It returns nil for invalid fields, scalar fields, and inline object fields.
+func (f Field) DetectObject() []byte {
+	obj := f.GetObject()
+	if obj == nil || unsafe.SliceData(obj) == unsafe.SliceData(f.data) {
+		return nil
+	}
+	return obj
+}
+
+func DetectArray(data []byte, detect func([]byte) []byte) []byte {
+	a := AsArray(data)
+	if !a.IsValid() {
+		return nil
+	}
+	compactEnd := 4 + int(a.size*a.width)
+	if detect == nil {
+		return data[:compactEnd]
+	}
+	for i := a.size; i > 0; i-- {
+		field := a.Get(i - 1)
+		obj := field.DetectObject()
+		if obj == nil {
+			continue
+		}
+		base := 4 + int((i-1)*a.width)
+		off := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj))) - uintptr(unsafe.Pointer(unsafe.SliceData(field.data))))
+		part := detect(obj)
+		if len(part) == 0 {
+			return nil
+		}
+		tail := base + off + len(part)
+		if tail > len(data) {
+			return nil
+		}
+		return data[:tail]
+	}
+	return data[:compactEnd]
+}
+
+func DetectMap(data []byte, detectKey func([]byte) []byte, detectValue func([]byte) []byte) []byte {
+	m := AsMap(data)
+	if !m.IsValid() {
+		return nil
+	}
+	compactEnd := int(m.body + uint32(m.keyWidth+m.valWidth)*m.core.size)
+	if detectKey == nil && detectValue == nil {
+		return m.core.data[:compactEnd]
+	}
+	for i := m.core.size; i > 0; i-- {
+		idx := i - 1
+		if detectValue != nil {
+			field := m.Value(idx)
+			obj := field.DetectObject()
+			if obj != nil {
+				base := int(m.body + idx*uint32(m.keyWidth+m.valWidth) + uint32(m.keyWidth))
+				off := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj))) - uintptr(unsafe.Pointer(unsafe.SliceData(field.data))))
+				part := detectValue(obj)
+				if len(part) == 0 {
+					return nil
+				}
+				tail := base + off + len(part)
+				if tail > len(m.core.data) {
+					return nil
+				}
+				return m.core.data[:tail]
+			}
+		}
+		if detectKey != nil {
+			field := m.Key(idx)
+			obj := field.DetectObject()
+			if obj != nil {
+				base := int(m.body + idx*uint32(m.keyWidth+m.valWidth))
+				off := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj))) - uintptr(unsafe.Pointer(unsafe.SliceData(field.data))))
+				part := detectKey(obj)
+				if len(part) == 0 {
+					return nil
+				}
+				tail := base + off + len(part)
+				if tail > len(m.core.data) {
+					return nil
+				}
+				return m.core.data[:tail]
+			}
+		}
+	}
+	return m.core.data[:compactEnd]
 }
