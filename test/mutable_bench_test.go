@@ -175,3 +175,17 @@ func BenchmarkSerialize(b *testing.B) {
 		benchmarkMutableBytes = out
 	}
 }
+
+func BenchmarkSerializeVT(b *testing.B) {
+	message := loadPBMain(b)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out, err := message.MarshalVT()
+		if err != nil {
+			b.Fatal(err)
+		}
+		benchmarkMutableBytes = out
+	}
+}
