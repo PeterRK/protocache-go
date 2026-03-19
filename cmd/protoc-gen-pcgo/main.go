@@ -774,21 +774,21 @@ func exFieldReplayExpr(field *protogen.Field, imports map[string]string, fieldVa
 	case protoreflect.BytesKind, protoreflect.StringKind:
 		return wrap("protocache.DetectBytes(" + fieldVar + ".GetObject())")
 	case protoreflect.DoubleKind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeFloat64(" + fieldVar + ".GetFloat64()))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	case protoreflect.FloatKind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeFloat32(" + fieldVar + ".GetFloat32()))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeUint64(" + fieldVar + ".GetUint64()))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeInt64(" + fieldVar + ".GetInt64()))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeUint32(" + fieldVar + ".GetUint32()))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeInt32(" + fieldVar + ".GetInt32()))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	case protoreflect.BoolKind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeBool(" + fieldVar + ".GetBool()))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	case protoreflect.EnumKind:
-		return wrap("protocache.WordsToBytes(protocache.EncodeInt32(int32(" + fieldVar + ".GetEnumValue())))")
+		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
 	default:
 		return "nil"
 	}
@@ -1567,15 +1567,27 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 				}
 				g.P("	} else {")
 				g.P("		field := m.__.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
-				g.P("		if raw := ", exFieldRawDetectExpr(field, imports, "field"), "; len(raw) != 0 {")
-				g.P("			parts[", id, "] = protocache.BytesToWords(raw)")
-				g.P("		}")
+				if exNeedsObjectDetect(field) {
+					g.P("		if raw := ", exFieldRawDetectExpr(field, imports, "field"), "; len(raw) != 0 {")
+					g.P("			parts[", id, "] = protocache.BytesToWords(raw)")
+					g.P("		}")
+				} else {
+					g.P("		if part := ", exFieldReplayExpr(field, imports, "field"), "; len(part) != 0 {")
+					g.P("			parts[", id, "] = part")
+					g.P("		}")
+				}
 				g.P("	}")
 			} else {
 				g.P("	field := m.__.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
-				g.P("	if raw := ", exFieldRawDetectExpr(field, imports, "field"), "; len(raw) != 0 {")
-				g.P("		parts[", id, "] = protocache.BytesToWords(raw)")
-				g.P("	}")
+				if exNeedsObjectDetect(field) {
+					g.P("	if raw := ", exFieldRawDetectExpr(field, imports, "field"), "; len(raw) != 0 {")
+					g.P("		parts[", id, "] = protocache.BytesToWords(raw)")
+					g.P("	}")
+				} else {
+					g.P("	if part := ", exFieldReplayExpr(field, imports, "field"), "; len(part) != 0 {")
+					g.P("		parts[", id, "] = part")
+					g.P("	}")
+				}
 			}
 		}
 		g.P("	return protocache.EncodeMessageParts(parts)")

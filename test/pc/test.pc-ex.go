@@ -754,13 +754,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[0] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_i32)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[0] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[0] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_u32, _FIELD_TOTAL_Main) {
@@ -771,13 +771,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[1] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_u32)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeUint32(field.GetUint32()))
-		}(); len(raw) != 0 {
-			parts[1] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[1] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_i64, _FIELD_TOTAL_Main) {
@@ -788,13 +788,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[2] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_i64)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeInt64(field.GetInt64()))
-		}(); len(raw) != 0 {
-			parts[2] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[2] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_u64, _FIELD_TOTAL_Main) {
@@ -805,13 +805,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[3] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_u64)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeUint64(field.GetUint64()))
-		}(); len(raw) != 0 {
-			parts[3] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[3] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_flag, _FIELD_TOTAL_Main) {
@@ -822,13 +822,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[4] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_flag)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeBool(field.GetBool()))
-		}(); len(raw) != 0 {
-			parts[4] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[4] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_mode, _FIELD_TOTAL_Main) {
@@ -839,13 +839,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[5] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_mode)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(int32(field.GetEnumValue())))
-		}(); len(raw) != 0 {
-			parts[5] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[5] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_str, _FIELD_TOTAL_Main) {
@@ -892,13 +892,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[8] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_f32)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeFloat32(field.GetFloat32()))
-		}(); len(raw) != 0 {
-			parts[8] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[8] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_f64, _FIELD_TOTAL_Main) {
@@ -909,13 +909,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[9] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_f64)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeFloat64(field.GetFloat64()))
-		}(); len(raw) != 0 {
-			parts[9] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[9] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
@@ -1113,13 +1113,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[19] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_t_u32)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeUint32(field.GetUint32()))
-		}(); len(raw) != 0 {
-			parts[19] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[19] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_t_i32, _FIELD_TOTAL_Main) {
@@ -1130,13 +1130,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[20] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_t_i32)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[20] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[20] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_t_s32, _FIELD_TOTAL_Main) {
@@ -1147,13 +1147,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[21] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_t_s32)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[21] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[21] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_t_u64, _FIELD_TOTAL_Main) {
@@ -1164,13 +1164,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[22] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_t_u64)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeUint64(field.GetUint64()))
-		}(); len(raw) != 0 {
-			parts[22] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[22] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_t_i64, _FIELD_TOTAL_Main) {
@@ -1181,13 +1181,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[23] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_t_i64)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeInt64(field.GetInt64()))
-		}(); len(raw) != 0 {
-			parts[23] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[23] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_t_s64, _FIELD_TOTAL_Main) {
@@ -1198,13 +1198,13 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		parts[24] = part
 	} else {
 		field := m.__.RawField(_FIELD_Main_t_s64)
-		if raw := func() []byte {
+		if part := func() []uint32 {
 			if !field.IsValid() {
 				return nil
 			}
-			return protocache.WordsToBytes(protocache.EncodeInt64(field.GetInt64()))
-		}(); len(raw) != 0 {
-			parts[24] = protocache.BytesToWords(raw)
+			return field.RawWords()
+		}(); len(part) != 0 {
+			parts[24] = part
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {

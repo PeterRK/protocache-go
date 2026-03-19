@@ -63,6 +63,13 @@ func (f Field) IsValid() bool {
 	return len(f.data) != 0
 }
 
+func (f Field) RawWords() []uint32 {
+	if len(f.data) == 0 {
+		return nil
+	}
+	return castBytesToWords(f.data)
+}
+
 func (f Field) GetBool() bool {
 	if len(f.data) != 4 {
 		return false
