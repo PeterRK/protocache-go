@@ -643,9 +643,6 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			if err != nil {
 				return nil, err
 			}
-			if len(valPart) <= 1 {
-				valPart = nil
-			}
 			keys = append(keys, keyPart)
 			vals = append(vals, valPart)
 		}
