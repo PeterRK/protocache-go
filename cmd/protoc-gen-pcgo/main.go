@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/peterrk/slices"
@@ -207,12 +208,12 @@ func main() {
 			if !file.Generate {
 				continue
 			}
-			err := GenFile(gen, file)
+			err := GenFile(gen, file, opt)
 			if err != nil {
 				return err
 			}
 			if opt.EX {
-				err = GenEXFile(gen, file)
+				err = GenEXFile(gen, file, opt)
 				if err != nil {
 					return err
 				}
@@ -223,7 +224,8 @@ func main() {
 }
 
 type Options struct {
-	EX bool
+	EX               bool
+	SkipPkgHierarchy bool
 }
 
 func parseOptions(raw string) Options {
@@ -234,9 +236,18 @@ func parseOptions(raw string) Options {
 		case "", ".":
 		case "extra", "extra=true":
 			out.EX = true
+		case "flat", "flat=true", "skip_pkg_hierarchy", "skip_pkg_hierarchy=true":
+			out.SkipPkgHierarchy = true
 		}
 	}
 	return out
+}
+
+func outputPrefix(file *protogen.File, opt Options) string {
+	if opt.SkipPkgHierarchy {
+		return path.Base(file.GeneratedFilenamePrefix)
+	}
+	return file.GeneratedFilenamePrefix
 }
 
 func CollectImports(pkg string, list []*protogen.Message, book map[string]string) {
@@ -482,7 +493,7 @@ func GenMessages(g *protogen.GeneratedFile, imports map[string]string,
 	return nil
 }
 
-func GenFile(gen *protogen.Plugin, file *protogen.File) error {
+func GenFile(gen *protogen.Plugin, file *protogen.File, opt Options) error {
 	imports := make(map[string]string)
 	CollectImports(string(file.GoImportPath), file.Messages, imports)
 
@@ -495,7 +506,7 @@ func GenFile(gen *protogen.Plugin, file *protogen.File) error {
 		imports[one] = fmt.Sprintf("p%d", i+1)
 	}
 
-	filename := file.GeneratedFilenamePrefix + ".pc.go"
+	filename := outputPrefix(file, opt) + ".pc.go"
 	g := gen.NewGeneratedFile(filename, file.GoImportPath)
 	g.P("package ", file.GoPackageName)
 	g.P()
@@ -712,7 +723,30 @@ func exAliasCtor(imports map[string]string, desc protoreflect.MessageDescriptor)
 }
 
 func exAliasSerializeExpr(access string) string {
-	return "func() ([]uint32, error) { data, err := " + access + ".Serialize(); if err != nil { return nil, err }; return protocache.BytesToWords(data), nil }()"
+	return access + ".Encode()"
+}
+
+func exObjectDetectExpr(field *protogen.Field, imports map[string]string, objectVar string) string {
+	if field.Desc.IsMap() {
+		keyDetect := exDetectCallbackRef(imports, field.Desc.MapKey())
+		valDetect := exDetectCallbackRef(imports, field.Desc.MapValue())
+		return "protocache.DetectMap(" + objectVar + ", " + keyDetect + ", " + valDetect + ")"
+	}
+	if field.Desc.IsList() {
+		if field.Desc.Kind() == protoreflect.BoolKind {
+			return "protocache.DetectBytes(" + objectVar + ")"
+		}
+		elemDetect := exDetectCallbackRef(imports, field.Desc)
+		return "protocache.DetectArray(" + objectVar + ", " + elemDetect + ")"
+	}
+	switch field.Desc.Kind() {
+	case protoreflect.BytesKind, protoreflect.StringKind:
+		return "protocache.DetectBytes(" + objectVar + ")"
+	case protoreflect.MessageKind:
+		return exDetectFuncRef(imports, field.Desc.Message()) + "(" + objectVar + ")"
+	default:
+		panic("field has no object detect")
+	}
 }
 
 func exDetectFuncRef(imports map[string]string, desc protoreflect.MessageDescriptor) string {
@@ -774,24 +808,37 @@ func exFieldReplayExpr(field *protogen.Field, imports map[string]string, fieldVa
 	case protoreflect.BytesKind, protoreflect.StringKind:
 		return wrap("protocache.DetectBytes(" + fieldVar + ".GetObject())")
 	case protoreflect.DoubleKind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	case protoreflect.FloatKind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	case protoreflect.BoolKind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	case protoreflect.EnumKind:
-		return "func() []uint32 { if !" + fieldVar + ".IsValid() { return nil }; return " + fieldVar + ".RawWords() }()"
+		return fieldVar + ".RawWords()"
 	default:
 		return "nil"
 	}
+}
+
+func exReplayAssignLines(field *protogen.Field, imports map[string]string, fieldVar, target string) []string {
+	if exNeedsObjectDetect(field) {
+		return []string{
+			"if obj := " + fieldVar + ".DetectObject(); obj != nil {",
+			"	" + target + " = protocache.BytesToWords(" + exFieldObjectDetectExpr(field, imports, fieldVar) + ")",
+			"} else {",
+			"	" + target + " = " + fieldVar + ".RawWords()",
+			"}",
+		}
+	}
+	return []string{target + " = " + fieldVar + ".RawWords()"}
 }
 
 func exAliasRawDetectExpr(field *protogen.Field, imports map[string]string, dataVar string) string {
@@ -899,7 +946,7 @@ func exEncodeExpr(field *protogen.Field, access string) string {
 			if exIsAliasMessage(field.Desc.Message()) {
 				return "protocache.EncodeObjectArray(len(" + access + "), func(i int) ([]uint32, error) { return " + exAliasSerializeExpr(access+"[i]") + " })"
 			}
-			return "protocache.EncodeObjectArray(len(" + access + "), func(i int) ([]uint32, error) { if " + access + "[i] == nil { return []uint32{0}, nil }; return " + access + "[i].serializeWords() })"
+			return "protocache.EncodeObjectArray(len(" + access + "), func(i int) ([]uint32, error) { return " + access + "[i].Encode() })"
 		case protoreflect.BytesKind:
 			return "protocache.EncodeBytesArray(" + access + ")"
 		case protoreflect.StringKind:
@@ -929,27 +976,27 @@ func exEncodeExpr(field *protogen.Field, access string) string {
 		if exIsAliasMessage(field.Desc.Message()) {
 			return exAliasSerializeExpr(access)
 		}
-		return access + ".serializeWords()"
+		return access + ".Encode()"
 	case protoreflect.BytesKind:
 		return "protocache.EncodeBytes(" + access + ")"
 	case protoreflect.StringKind:
 		return "protocache.EncodeString(" + access + ")"
 	case protoreflect.DoubleKind:
-		return "func() ([]uint32, error) { return protocache.EncodeFloat64(" + access + "), nil }()"
+		return "protocache.EncodeFloat64(" + access + ")"
 	case protoreflect.FloatKind:
-		return "func() ([]uint32, error) { return protocache.EncodeFloat32(" + access + "), nil }()"
+		return "protocache.EncodeFloat32(" + access + ")"
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeUint64(" + access + "), nil }()"
+		return "protocache.EncodeUint64(" + access + ")"
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeInt64(" + access + "), nil }()"
+		return "protocache.EncodeInt64(" + access + ")"
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeUint32(" + access + "), nil }()"
+		return "protocache.EncodeUint32(" + access + ")"
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeInt32(" + access + "), nil }()"
+		return "protocache.EncodeInt32(" + access + ")"
 	case protoreflect.BoolKind:
-		return "func() ([]uint32, error) { return protocache.EncodeBool(" + access + "), nil }()"
+		return "protocache.EncodeBool(" + access + ")"
 	case protoreflect.EnumKind:
-		return "func() ([]uint32, error) { return protocache.EncodeInt32(int32(" + access + ")), nil }()"
+		return "protocache.EncodeInt32(int32(" + access + "))"
 	default:
 		panic("unsupported ex encode type")
 	}
@@ -961,20 +1008,64 @@ func exMapValueField(field *protogen.Field) *protogen.Field {
 	return &valueField
 }
 
+func exHasValueExpr(field *protogen.Field, access string) string {
+	if field.Desc.IsMap() || field.Desc.IsList() {
+		return "len(" + access + ") != 0"
+	}
+	switch field.Desc.Kind() {
+	case protoreflect.MessageKind:
+		return access + " != nil"
+	case protoreflect.BytesKind, protoreflect.StringKind:
+		return "len(" + access + ") != 0"
+	case protoreflect.DoubleKind, protoreflect.FloatKind:
+		return access + " != 0"
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return access + " != 0"
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		return access + " != 0"
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return access + " != 0"
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		return access + " != 0"
+	case protoreflect.BoolKind:
+		return access
+	case protoreflect.EnumKind:
+		return access + " != 0"
+	default:
+		return ""
+	}
+}
+
 func exMapKeyEncodeExpr(desc protoreflect.FieldDescriptor, access string) string {
 	switch desc.Kind() {
 	case protoreflect.StringKind:
 		return "protocache.EncodeString(" + access + ")"
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeUint64(" + access + "), nil }()"
+		return "protocache.EncodeUint64(" + access + ")"
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeInt64(" + access + "), nil }()"
+		return "protocache.EncodeInt64(" + access + ")"
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeUint32(" + access + "), nil }()"
+		return "protocache.EncodeUint32(" + access + ")"
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return "func() ([]uint32, error) { return protocache.EncodeInt32(" + access + "), nil }()"
+		return "protocache.EncodeInt32(" + access + ")"
 	default:
 		panic("unsupported map key type")
+	}
+}
+
+func exMapKeyEncodeNeedsErr(desc protoreflect.FieldDescriptor) bool {
+	return desc.Kind() == protoreflect.StringKind
+}
+
+func exEncodeNeedsErr(field *protogen.Field) bool {
+	if field.Desc.IsList() {
+		return true
+	}
+	switch field.Desc.Kind() {
+	case protoreflect.MessageKind, protoreflect.BytesKind, protoreflect.StringKind:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1255,19 +1346,33 @@ func exAliasEncodeExpr(field *protogen.Field, imports map[string]string, access 
 			"keys := make([][]uint32, 0, len(" + access + "))",
 			"vals := make([][]uint32, 0, len(" + access + "))",
 			"for k, v := range " + access + " {",
-			"	keyPart, err := " + exMapKeyEncodeExpr(field.Desc.MapKey(), "k"),
-			"	if err != nil {",
-			"		return nil, err",
-			"	}",
-			"	valPart, err := " + exEncodeExpr(valueField, "v"),
-			"	if err != nil {",
-			"		return nil, err",
-			"	}",
+		}
+		if exMapKeyEncodeNeedsErr(field.Desc.MapKey()) {
+			lines = append(lines,
+				"	keyPart, err := "+exMapKeyEncodeExpr(field.Desc.MapKey(), "k"),
+				"	if err != nil {",
+				"		return nil, err",
+				"	}",
+			)
+		} else {
+			lines = append(lines, "	keyPart := "+exMapKeyEncodeExpr(field.Desc.MapKey(), "k"))
+		}
+		if exEncodeNeedsErr(valueField) {
+			lines = append(lines,
+				"	valPart, err := "+exEncodeExpr(valueField, "v"),
+				"	if err != nil {",
+				"		return nil, err",
+				"	}",
+			)
+		} else {
+			lines = append(lines, "	valPart := "+exEncodeExpr(valueField, "v"))
+		}
+		lines = append(lines,
 			"	keys = append(keys, keyPart)",
 			"	vals = append(vals, valPart)",
 			"}",
-			"return protocache.EncodeMapParts(keys, vals, " + fmt.Sprint(field.Desc.MapKey().Kind() == protoreflect.StringKind) + ")",
-		}
+			"return protocache.EncodeMapParts(keys, vals, "+fmt.Sprint(field.Desc.MapKey().Kind() == protoreflect.StringKind)+")",
+		)
 		return lines
 	case field.Desc.IsList():
 		switch field.Desc.Kind() {
@@ -1334,19 +1439,13 @@ func GenEXAlias(g *protogen.GeneratedFile, imports map[string]string, one *proto
 	g.P("	return out")
 	g.P("}")
 	g.P()
-	g.P("func (x ", typeName, ") Serialize() ([]byte, error) {")
-	g.P("	words, err := serialize", one.GoIdent.GoName, "EX(x)")
-	g.P("	if err != nil {")
-	g.P("		return nil, err")
-	g.P("	}")
-	g.P("	return protocache.WordsToBytes(words), nil")
-	g.P("}")
-	g.P()
-	g.P("func serialize", one.GoIdent.GoName, "EX(x ", typeName, ") ([]uint32, error) {")
+	g.P("func (x ", typeName, ") Encode() ([]uint32, error) {")
 	for _, line := range exAliasEncodeExpr(field, imports, "x") {
 		g.P("	", line)
 	}
 	g.P("}")
+	g.P()
+	g.P("func (x ", typeName, ") Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }")
 	return nil
 }
 
@@ -1450,34 +1549,20 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P("	if inlined == nil {")
 		g.P("		return nil")
 		g.P("	}")
-		g.P("	compactEnd := len(inlined)")
 		for i := len(fields) - 1; i >= 0; i-- {
 			field := fields[i]
 			if !exNeedsObjectDetect(field) {
 				continue
 			}
-			g.P("	if field := msg.GetField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), "); field.IsValid() {")
-			g.P("		if obj := field.DetectObject(); obj != nil {")
-			g.P("			part := ", exFieldRawDetectExpr(field, imports, "field"))
-			g.P("			if len(part) == 0 {")
-			g.P("				return nil")
-			g.P("			}")
-			g.P("			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj))) - uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)")
-			g.P("			if tail > len(data) {")
-			g.P("				return nil")
-			g.P("			}")
-			g.P("			return data[:tail]")
-			g.P("		}")
+			g.P("	if obj := msg.GetField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ").DetectObject(); obj != nil {")
+			g.P("		return protocache.DetectShrink(data, obj, ", exObjectDetectExpr(field, imports, "obj"), ")")
 			g.P("	}")
 		}
-		g.P("	if compactEnd > len(data) {")
-		g.P("		return nil")
-		g.P("	}")
-		g.P("	return data[:compactEnd]")
+		g.P("	return inlined")
 		g.P("}")
 		g.P()
 		g.P("type ", one.GoIdent.GoName, "EX struct {")
-		g.P("	__ protocache.MessageEX")
+		g.P("	meta protocache.MessageEX")
 		for _, field := range fields {
 			if !exSupportsField(field.Desc) {
 				continue
@@ -1488,21 +1573,13 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P()
 		g.P("func TO_", one.GoIdent.GoName, "EX(data []byte) *", one.GoIdent.GoName, "EX {")
 		g.P("	out := &", one.GoIdent.GoName, "EX{}")
-		g.P("	out.__.Init(data)")
+		g.P("	out.meta.Init(data)")
 		g.P("	return out")
 		g.P("}")
 		g.P()
-		g.P("func (m *", one.GoIdent.GoName, "EX) HasBase() bool { return m.__.HasBase() }")
+		g.P("func (m *", one.GoIdent.GoName, "EX) HasBase() bool { return m.meta.HasBase() }")
 		g.P()
-		g.P("func (m *", one.GoIdent.GoName, "EX) Serialize() ([]byte, error) {")
-		g.P("	words, err := m.serializeWords()")
-		g.P("	if err != nil {")
-		g.P("		return nil, err")
-		g.P("	}")
-		g.P("	return protocache.WordsToBytes(words), nil")
-		g.P("}")
-		g.P()
-		g.P("func (m *", one.GoIdent.GoName, "EX) serializeWords() ([]uint32, error) {")
+		g.P("func (m *", one.GoIdent.GoName, "EX) Encode() ([]uint32, error) {")
 		g.P("	if m == nil {")
 		g.P("		return []uint32{0}, nil")
 		g.P("	}")
@@ -1511,74 +1588,94 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 			id := field.Desc.Number() - 1
 			if exSupportsField(field.Desc) {
 				name := exFieldName(field)
-				g.P("	if m.__.IsVisited(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ") {")
+				visited := "_FIELD_" + one.GoIdent.GoName + "_" + string(field.Desc.Name())
+				total := "_FIELD_TOTAL_" + one.GoIdent.GoName
+				hasValue := exHasValueExpr(field, "m."+name)
+				g.P("	if !m.meta.IsVisited(", visited, ", ", total, ") {")
+				g.P("		field := m.meta.RawField(", visited, ")")
+				for _, line := range exReplayAssignLines(field, imports, "field", fmt.Sprintf("parts[%d]", id)) {
+					g.P("		", line)
+				}
 				if field.Desc.IsMap() {
-					valField := exMapValueField(field)
-					g.P("		if len(m.", name, ") != 0 {")
-					g.P("			keys := make([][]uint32, 0, len(m.", name, "))")
-					g.P("			vals := make([][]uint32, 0, len(m.", name, "))")
-					g.P("			for k, v := range m.", name, " {")
-					g.P("				keyPart, err := ", exMapKeyEncodeExpr(field.Desc.MapKey(), "k"))
-					g.P("				if err != nil {")
-					g.P("					return nil, err")
-					g.P("				}")
-					g.P("				valPart, err := ", exEncodeExpr(valField, "v"))
-					g.P("				if err != nil {")
-					g.P("					return nil, err")
-					g.P("				}")
-					if valField.Desc.Kind() == protoreflect.MessageKind {
-						g.P("				if len(valPart) <= 1 {")
-						g.P("					valPart = nil")
-						g.P("				}")
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
 					}
-					g.P("				keys = append(keys, keyPart)")
-					g.P("				vals = append(vals, valPart)")
-					g.P("			}")
-					g.P("			part, err := protocache.EncodeMapParts(keys, vals, ", field.Desc.MapKey().Kind() == protoreflect.StringKind, ")")
-					g.P("			if err != nil {")
-					g.P("				return nil, err")
-					g.P("			}")
-					g.P("			parts[", id, "] = part")
+					valField := exMapValueField(field)
+					g.P("		keys := make([][]uint32, 0, len(m.", name, "))")
+					g.P("		vals := make([][]uint32, 0, len(m.", name, "))")
+					g.P("		for k, v := range m.", name, " {")
+					if exMapKeyEncodeNeedsErr(field.Desc.MapKey()) {
+						g.P("			keyPart, err := ", exMapKeyEncodeExpr(field.Desc.MapKey(), "k"))
+						g.P("			if err != nil {")
+						g.P("				return nil, err")
+						g.P("			}")
+					} else {
+						g.P("			keyPart := ", exMapKeyEncodeExpr(field.Desc.MapKey(), "k"))
+					}
+					if exEncodeNeedsErr(valField) {
+						g.P("			valPart, err := ", exEncodeExpr(valField, "v"))
+						g.P("			if err != nil {")
+						g.P("				return nil, err")
+						g.P("			}")
+					} else {
+						g.P("			valPart := ", exEncodeExpr(valField, "v"))
+					}
+					g.P("			keys = append(keys, keyPart)")
+					g.P("			vals = append(vals, valPart)")
 					g.P("		}")
+					g.P("		part, err := protocache.EncodeMapParts(keys, vals, ", field.Desc.MapKey().Kind() == protoreflect.StringKind, ")")
+					g.P("		if err != nil {")
+					g.P("			return nil, err")
+					g.P("		}")
+					g.P("		parts[", id, "] = part")
+					g.P("	}")
 				} else if field.Desc.IsList() {
-					g.P("		if len(m.", name, ") != 0 {")
-					g.P("			part, err := ", exEncodeExpr(field, "m."+name))
-					g.P("			if err != nil {")
-					g.P("				return nil, err")
-					g.P("			}")
-					g.P("			parts[", id, "] = part")
-					g.P("		}")
-				} else if field.Desc.Kind() == protoreflect.MessageKind {
-					g.P("		if m.", name, " != nil {")
-					g.P("			part, err := ", exEncodeExpr(field, "m."+name))
-					g.P("			if err != nil {")
-					g.P("				return nil, err")
-					g.P("			}")
-					g.P("			if len(part) > 1 {")
-					g.P("				parts[", id, "] = part")
-					g.P("			}")
-					g.P("		}")
-				} else {
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
+					}
 					g.P("		part, err := ", exEncodeExpr(field, "m."+name))
 					g.P("		if err != nil {")
 					g.P("			return nil, err")
 					g.P("		}")
 					g.P("		parts[", id, "] = part")
-				}
-				g.P("	} else {")
-				g.P("		field := m.__.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
-				if exNeedsObjectDetect(field) {
-					g.P("		if raw := ", exFieldRawDetectExpr(field, imports, "field"), "; len(raw) != 0 {")
-					g.P("			parts[", id, "] = protocache.BytesToWords(raw)")
+					g.P("	}")
+				} else if field.Desc.Kind() == protoreflect.MessageKind {
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
+					}
+					g.P("		part, err := ", exEncodeExpr(field, "m."+name))
+					g.P("		if err != nil {")
+					g.P("			return nil, err")
 					g.P("		}")
-				} else {
-					g.P("		if part := ", exFieldReplayExpr(field, imports, "field"), "; len(part) != 0 {")
+					g.P("		if len(part) > 1 {")
 					g.P("			parts[", id, "] = part")
 					g.P("		}")
+					g.P("	}")
+				} else {
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
+					}
+					if exEncodeNeedsErr(field) {
+						g.P("		part, err := ", exEncodeExpr(field, "m."+name))
+						g.P("		if err != nil {")
+						g.P("			return nil, err")
+						g.P("		}")
+						g.P("		parts[", id, "] = part")
+					} else {
+						g.P("		parts[", id, "] = ", exEncodeExpr(field, "m."+name))
+					}
+					g.P("	}")
 				}
-				g.P("	}")
 			} else {
-				g.P("	field := m.__.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
+				g.P("	field := m.meta.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
 				if exNeedsObjectDetect(field) {
 					g.P("	if raw := ", exFieldRawDetectExpr(field, imports, "field"), "; len(raw) != 0 {")
 					g.P("		parts[", id, "] = protocache.BytesToWords(raw)")
@@ -1592,6 +1689,8 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		}
 		g.P("	return protocache.EncodeMessageParts(parts)")
 		g.P("}")
+		g.P()
+		g.P("func (m *", one.GoIdent.GoName, "EX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(m.Encode()) }")
 
 		for _, field := range fields {
 			if !exSupportsField(field.Desc) {
@@ -1600,14 +1699,14 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 			name := exFieldName(field)
 			g.P()
 			g.P("func (m *", one.GoIdent.GoName, "EX) Get", field.GoName, "() ", exGoType(imports, field), " {")
-			g.P("	if m.__.IsVisited(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ") {")
+			g.P("	if m.meta.IsVisited(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ") {")
 			g.P("		return m.", name)
 			g.P("	}")
-			g.P("	field := m.__.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
+			g.P("	field := m.meta.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
 			for _, line := range exGetExpr(field, imports, name) {
 				g.P("	", line)
 			}
-			g.P("	m.__.Visit(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ")")
+			g.P("	m.meta.Visit(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ")")
 			g.P("	return m.", name)
 			g.P("}")
 			g.P()
@@ -1615,14 +1714,14 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 			for _, line := range exSetExpr(field, imports, name) {
 				g.P("	", line)
 			}
-			g.P("	m.__.Visit(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ")")
+			g.P("	m.meta.Visit(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ")")
 			g.P("}")
 		}
 	}
 	return nil
 }
 
-func GenEXFile(gen *protogen.Plugin, file *protogen.File) error {
+func GenEXFile(gen *protogen.Plugin, file *protogen.File, opt Options) error {
 	imports := make(map[string]string)
 	CollectImports(string(file.GoImportPath), file.Messages, imports)
 	pkgs := make([]string, 0, len(imports))
@@ -1634,16 +1733,19 @@ func GenEXFile(gen *protogen.Plugin, file *protogen.File) error {
 		imports[one] = fmt.Sprintf("p%d", i+1)
 	}
 
-	filename := file.GeneratedFilenamePrefix + ".pc-ex.go"
+	filename := outputPrefix(file, opt) + ".pc-ex.go"
 	g := gen.NewGeneratedFile(filename, file.GoImportPath)
 	g.P("package ", file.GoPackageName)
 	g.P()
-	g.P("import (")
-	g.P(`	"unsafe"`)
-	g.P(`	"github.com/peterrk/protocache-go"`)
-	for name, mark := range imports {
-		g.P("	", mark, ` "`, name, `"`)
+	if len(imports) == 0 {
+		g.P(`import "github.com/peterrk/protocache-go"`)
+	} else {
+		g.P("import (")
+		g.P(`	"github.com/peterrk/protocache-go"`)
+		for name, mark := range imports {
+			g.P("	", mark, ` "`, name, `"`)
+		}
+		g.P(")")
 	}
-	g.P(")")
 	return GenEXMessages(g, imports, file.Messages)
 }
