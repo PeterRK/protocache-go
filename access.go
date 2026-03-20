@@ -398,7 +398,9 @@ func AsMap(data []byte) Map {
 	if !m.core.Init(data) {
 		return Map{}
 	}
-	m.body = uint32(len(m.core.data))
+	// Map bodies are written on a 32-bit word boundary, so the payload starts
+	// after the padded perfect-hash header rather than the raw header byte size.
+	m.body = calcWordSize(uint32(len(m.core.data))) * 4
 	m.core.data = data
 	m.keyWidth = uint16(getUint32(data)>>28) & 0xc
 	m.valWidth = uint16(getUint32(data)>>26) & 0xc

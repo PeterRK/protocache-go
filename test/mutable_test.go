@@ -2,6 +2,8 @@ package test
 
 import (
 	"bytes"
+	"encoding/binary"
+	"fmt"
 	"os"
 	"testing"
 
@@ -279,4 +281,64 @@ func TestEXModifyAliasFields(t *testing.T) {
 	assert(t, found)
 	assert(t, lv6.Size() == 2)
 	assert(t, lv6.Get(0) == 601)
+}
+
+func TestEXTinySerialize(t *testing.T) {
+	root := pc.TO_MainEX(nil)
+
+	out, err := root.Serialize()
+	assert(t, err == nil)
+	assert(t, len(out) == 4)
+	assert(t, bytes.Equal(out, []byte{0, 0, 0, 0}))
+}
+
+func TestEXAliasSerializeLayout(t *testing.T) {
+	root := pc.TO_MainEX(nil)
+	root.SetObject(pc.TO_SmallEX(nil))
+	root.GetObject().SetI32(0)
+
+	matrix := make(pc.Vec2DEX, 3)
+	matrix[2] = make(pc.Vec2D_Vec1DEX, 3)
+	root.SetMatrix(matrix)
+
+	out, err := root.Serialize()
+	assert(t, err == nil)
+	assert(t, len(out) == 56)
+	assert(t, binary.LittleEndian.Uint32(out[24:]) == 0x0d)
+	assert(t, binary.LittleEndian.Uint32(out[28:]) == 1)
+	assert(t, binary.LittleEndian.Uint32(out[32:]) == 1)
+
+	view := pc.AS_Main(out)
+	obj := view.GetObject()
+	assert(t, obj.GetI32() == 0)
+	gotMatrix := view.GetMatrix()
+	assert(t, gotMatrix.Size() == 3)
+	row2 := gotMatrix.Get(2)
+	assert(t, row2.Size() == 3)
+}
+
+func TestEXStringKeyMapStress(t *testing.T) {
+	root := pc.TO_MainEX(nil)
+	arrays := make(pc.ArrMapEX, 64)
+	keys := make([]string, 64)
+	for i := 0; i < 64; i++ {
+		keys[i] = fmt.Sprintf("very_long_key_prefix_to_disable_sso_%03d", i)
+		arrays[keys[i]] = pc.ArrMap_ArrayEX{float32(i), float32(i) + 0.5}
+	}
+	root.SetArrays(arrays)
+
+	out, err := root.Serialize()
+	assert(t, err == nil)
+
+	view := pc.AS_Main(out)
+	got := view.GetArrays()
+	assert(t, got.Size() == uint32(len(keys)))
+
+	for i, key := range keys {
+		val, found := got.Find(key)
+		assert(t, found)
+		assert(t, val.Size() == 2)
+		assert(t, val.Get(0) == float32(i))
+		assert(t, val.Get(1) == float32(i)+0.5)
+	}
 }
