@@ -16,6 +16,10 @@ func Serialize(obj proto.Message) ([]byte, error) {
 	return castToBytes(data), nil
 }
 
+func SerializeEncoded(data []uint32, err error) ([]byte, error) {
+	return WordsToBytes(data), err
+}
+
 func EncodeBool(v bool) []uint32 {
 	return serializeBool(v)
 }

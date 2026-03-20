@@ -303,10 +303,10 @@ func TestEXAliasSerializeLayout(t *testing.T) {
 
 	out, err := root.Serialize()
 	assert(t, err == nil)
-	assert(t, len(out) == 56)
-	assert(t, binary.LittleEndian.Uint32(out[24:]) == 0x0d)
-	assert(t, binary.LittleEndian.Uint32(out[28:]) == 1)
-	assert(t, binary.LittleEndian.Uint32(out[32:]) == 1)
+	assert(t, len(out) == 48)
+	assert(t, binary.LittleEndian.Uint32(out[24:]) == 1)
+	assert(t, binary.LittleEndian.Uint32(out[28:]) == 0x07)
+	assert(t, binary.LittleEndian.Uint32(out[32:]) == 0x0d)
 
 	view := pc.AS_Main(out)
 	obj := view.GetObject()
