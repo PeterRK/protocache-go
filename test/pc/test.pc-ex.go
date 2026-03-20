@@ -11,7 +11,8 @@ func DETECT_Small(data []byte) []byte {
 	if inlined == nil {
 		return nil
 	}
-	if obj := msg.GetField(_FIELD_Small_str).DetectObject(); obj != nil {
+	field := msg.GetField(_FIELD_Small_str)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectBytes(obj))
 	}
 	return inlined
@@ -33,7 +34,7 @@ func TO_SmallEX(data []byte) *SmallEX {
 
 func (m *SmallEX) HasBase() bool { return m.meta.HasBase() }
 
-func (m *SmallEX) Encode() ([]uint32, error) {
+func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
@@ -42,13 +43,13 @@ func (m *SmallEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Small_i32)
 		parts[0] = field.RawWords()
 	} else if m.fI32 != 0 {
-		parts[0] = protocache.EncodeInt32(m.fI32)
+		parts[0], _ = protocache.EncodeInt32(m.fI32)
 	}
 	if !m.meta.IsVisited(_FIELD_Small_flag, _FIELD_TOTAL_Small) {
 		field := m.meta.RawField(_FIELD_Small_flag)
 		parts[1] = field.RawWords()
 	} else if m.fFlag {
-		parts[1] = protocache.EncodeBool(m.fFlag)
+		parts[1], _ = protocache.EncodeBool(m.fFlag)
 	}
 	if !m.meta.IsVisited(_FIELD_Small_str, _FIELD_TOTAL_Small) {
 		field := m.meta.RawField(_FIELD_Small_str)
@@ -68,12 +69,12 @@ func (m *SmallEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Small_junk)
 		parts[4] = field.RawWords()
 	} else if m.fJunk != 0 {
-		parts[4] = protocache.EncodeInt64(m.fJunk)
+		parts[4], _ = protocache.EncodeInt64(m.fJunk)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *SmallEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(m.Encode()) }
+func (m *SmallEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_Small(m)) }
 
 func (m *SmallEX) GetI32() int32 {
 	if m.meta.IsVisited(_FIELD_Small_i32, _FIELD_TOTAL_Small) {
@@ -148,14 +149,16 @@ func TO_Vec2D_Vec1DEX(data []byte) Vec2D_Vec1DEX {
 	return out
 }
 
-func (x Vec2D_Vec1DEX) Encode() ([]uint32, error) {
+func ENCODE_Vec2D_Vec1D(x Vec2D_Vec1DEX) ([]uint32, error) {
 	if len(x) == 0 {
 		return []uint32{1}, nil
 	}
 	return protocache.EncodeFloat32Array([]float32(x))
 }
 
-func (x Vec2D_Vec1DEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }
+func (x Vec2D_Vec1DEX) Serialize() ([]byte, error) {
+	return protocache.SerializeEncoded(ENCODE_Vec2D_Vec1D(x))
+}
 
 func DETECT_Vec2D(data []byte) []byte {
 	return protocache.DetectArray(data, DETECT_Vec2D_Vec1D)
@@ -174,14 +177,14 @@ func TO_Vec2DEX(data []byte) Vec2DEX {
 	return out
 }
 
-func (x Vec2DEX) Encode() ([]uint32, error) {
+func ENCODE_Vec2D(x Vec2DEX) ([]uint32, error) {
 	if len(x) == 0 {
 		return []uint32{1}, nil
 	}
-	return protocache.EncodeObjectArray(len(x), func(i int) ([]uint32, error) { return x[i].Encode() })
+	return protocache.EncodeObjectArray(x, ENCODE_Vec2D_Vec1D)
 }
 
-func (x Vec2DEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }
+func (x Vec2DEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_Vec2D(x)) }
 
 func DETECT_ArrMap_Array(data []byte) []byte {
 	return protocache.DetectArray(data, nil)
@@ -196,14 +199,16 @@ func TO_ArrMap_ArrayEX(data []byte) ArrMap_ArrayEX {
 	return out
 }
 
-func (x ArrMap_ArrayEX) Encode() ([]uint32, error) {
+func ENCODE_ArrMap_Array(x ArrMap_ArrayEX) ([]uint32, error) {
 	if len(x) == 0 {
 		return []uint32{1}, nil
 	}
 	return protocache.EncodeFloat32Array([]float32(x))
 }
 
-func (x ArrMap_ArrayEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }
+func (x ArrMap_ArrayEX) Serialize() ([]byte, error) {
+	return protocache.SerializeEncoded(ENCODE_ArrMap_Array(x))
+}
 
 func DETECT_ArrMap(data []byte) []byte {
 	return protocache.DetectMap(data, protocache.DetectBytes, DETECT_ArrMap_Array)
@@ -224,28 +229,11 @@ func TO_ArrMapEX(data []byte) ArrMapEX {
 	return out
 }
 
-func (x ArrMapEX) Encode() ([]uint32, error) {
-	if len(x) == 0 {
-		return []uint32{5 << 28}, nil
-	}
-	keys := make([][]uint32, 0, len(x))
-	vals := make([][]uint32, 0, len(x))
-	for k, v := range x {
-		keyPart, err := protocache.EncodeString(k)
-		if err != nil {
-			return nil, err
-		}
-		valPart, err := v.Encode()
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, keyPart)
-		vals = append(vals, valPart)
-	}
-	return protocache.EncodeMapParts(keys, vals, true)
+func ENCODE_ArrMap(x ArrMapEX) ([]uint32, error) {
+	return protocache.EncodeStringMap(x, ENCODE_ArrMap_Array)
 }
 
-func (x ArrMapEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }
+func (x ArrMapEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_ArrMap(x)) }
 
 func DETECT_Main(data []byte) []byte {
 	msg := protocache.AsMessage(data)
@@ -256,55 +244,72 @@ func DETECT_Main(data []byte) []byte {
 	if inlined == nil {
 		return nil
 	}
-	if obj := msg.GetField(_FIELD_Main_modev).DetectObject(); obj != nil {
+	field := msg.GetField(_FIELD_Main_modev)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, nil))
 	}
-	if obj := msg.GetField(_FIELD_Main_arrays).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_arrays)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, DETECT_ArrMap(obj))
 	}
-	if obj := msg.GetField(_FIELD_Main_vector).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_vector)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, DETECT_ArrMap))
 	}
-	if obj := msg.GetField(_FIELD_Main_matrix).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_matrix)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, DETECT_Vec2D(obj))
 	}
-	if obj := msg.GetField(_FIELD_Main_objects).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_objects)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectMap(obj, nil, DETECT_Small))
 	}
-	if obj := msg.GetField(_FIELD_Main_index).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_index)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectMap(obj, protocache.DetectBytes, nil))
 	}
-	if obj := msg.GetField(_FIELD_Main_objectv).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_objectv)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, DETECT_Small))
 	}
-	if obj := msg.GetField(_FIELD_Main_flags).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_flags)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectBytes(obj))
 	}
-	if obj := msg.GetField(_FIELD_Main_f64v).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_f64v)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, nil))
 	}
-	if obj := msg.GetField(_FIELD_Main_f32v).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_f32v)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, nil))
 	}
-	if obj := msg.GetField(_FIELD_Main_datav).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_datav)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, protocache.DetectBytes))
 	}
-	if obj := msg.GetField(_FIELD_Main_strv).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_strv)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, protocache.DetectBytes))
 	}
-	if obj := msg.GetField(_FIELD_Main_u64v).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_u64v)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, nil))
 	}
-	if obj := msg.GetField(_FIELD_Main_i32v).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_i32v)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectArray(obj, nil))
 	}
-	if obj := msg.GetField(_FIELD_Main_object).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_object)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, DETECT_Small(obj))
 	}
-	if obj := msg.GetField(_FIELD_Main_data).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_data)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectBytes(obj))
 	}
-	if obj := msg.GetField(_FIELD_Main_str).DetectObject(); obj != nil {
+	field = msg.GetField(_FIELD_Main_str)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, protocache.DetectBytes(obj))
 	}
 	return inlined
@@ -353,7 +358,7 @@ func TO_MainEX(data []byte) *MainEX {
 
 func (m *MainEX) HasBase() bool { return m.meta.HasBase() }
 
-func (m *MainEX) Encode() ([]uint32, error) {
+func ENCODE_Main(m *MainEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
@@ -362,37 +367,37 @@ func (m *MainEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Main_i32)
 		parts[0] = field.RawWords()
 	} else if m.fI32 != 0 {
-		parts[0] = protocache.EncodeInt32(m.fI32)
+		parts[0], _ = protocache.EncodeInt32(m.fI32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_u32, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_u32)
 		parts[1] = field.RawWords()
 	} else if m.fU32 != 0 {
-		parts[1] = protocache.EncodeUint32(m.fU32)
+		parts[1], _ = protocache.EncodeUint32(m.fU32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_i64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_i64)
 		parts[2] = field.RawWords()
 	} else if m.fI64 != 0 {
-		parts[2] = protocache.EncodeInt64(m.fI64)
+		parts[2], _ = protocache.EncodeInt64(m.fI64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_u64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_u64)
 		parts[3] = field.RawWords()
 	} else if m.fU64 != 0 {
-		parts[3] = protocache.EncodeUint64(m.fU64)
+		parts[3], _ = protocache.EncodeUint64(m.fU64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_flag, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_flag)
 		parts[4] = field.RawWords()
 	} else if m.fFlag {
-		parts[4] = protocache.EncodeBool(m.fFlag)
+		parts[4], _ = protocache.EncodeBool(m.fFlag)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_mode, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_mode)
 		parts[5] = field.RawWords()
 	} else if m.fMode != 0 {
-		parts[5] = protocache.EncodeInt32(int32(m.fMode))
+		parts[5], _ = protocache.EncodeInt32(int32(m.fMode))
 	}
 	if !m.meta.IsVisited(_FIELD_Main_str, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_str)
@@ -426,13 +431,13 @@ func (m *MainEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Main_f32)
 		parts[8] = field.RawWords()
 	} else if m.fF32 != 0 {
-		parts[8] = protocache.EncodeFloat32(m.fF32)
+		parts[8], _ = protocache.EncodeFloat32(m.fF32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_f64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_f64)
 		parts[9] = field.RawWords()
 	} else if m.fF64 != 0 {
-		parts[9] = protocache.EncodeFloat64(m.fF64)
+		parts[9], _ = protocache.EncodeFloat64(m.fF64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_object)
@@ -442,7 +447,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[10] = field.RawWords()
 		}
 	} else if m.fObject != nil {
-		part, err := m.fObject.Encode()
+		part, err := ENCODE_Small(m.fObject)
 		if err != nil {
 			return nil, err
 		}
@@ -556,7 +561,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[18] = field.RawWords()
 		}
 	} else if len(m.fObjectv) != 0 {
-		part, err := protocache.EncodeObjectArray(len(m.fObjectv), func(i int) ([]uint32, error) { return m.fObjectv[i].Encode() })
+		part, err := protocache.EncodeObjectArray(m.fObjectv, ENCODE_Small)
 		if err != nil {
 			return nil, err
 		}
@@ -566,37 +571,37 @@ func (m *MainEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Main_t_u32)
 		parts[19] = field.RawWords()
 	} else if m.fTU32 != 0 {
-		parts[19] = protocache.EncodeUint32(m.fTU32)
+		parts[19], _ = protocache.EncodeUint32(m.fTU32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_i32, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_i32)
 		parts[20] = field.RawWords()
 	} else if m.fTI32 != 0 {
-		parts[20] = protocache.EncodeInt32(m.fTI32)
+		parts[20], _ = protocache.EncodeInt32(m.fTI32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_s32, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_s32)
 		parts[21] = field.RawWords()
 	} else if m.fTS32 != 0 {
-		parts[21] = protocache.EncodeInt32(m.fTS32)
+		parts[21], _ = protocache.EncodeInt32(m.fTS32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_u64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_u64)
 		parts[22] = field.RawWords()
 	} else if m.fTU64 != 0 {
-		parts[22] = protocache.EncodeUint64(m.fTU64)
+		parts[22], _ = protocache.EncodeUint64(m.fTU64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_i64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_i64)
 		parts[23] = field.RawWords()
 	} else if m.fTI64 != 0 {
-		parts[23] = protocache.EncodeInt64(m.fTI64)
+		parts[23], _ = protocache.EncodeInt64(m.fTI64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_s64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_s64)
 		parts[24] = field.RawWords()
 	} else if m.fTS64 != 0 {
-		parts[24] = protocache.EncodeInt64(m.fTS64)
+		parts[24], _ = protocache.EncodeInt64(m.fTS64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_index)
@@ -606,18 +611,9 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[25] = field.RawWords()
 		}
 	} else if len(m.fIndex) != 0 {
-		keys := make([][]uint32, 0, len(m.fIndex))
-		vals := make([][]uint32, 0, len(m.fIndex))
-		for k, v := range m.fIndex {
-			keyPart, err := protocache.EncodeString(k)
-			if err != nil {
-				return nil, err
-			}
-			valPart := protocache.EncodeInt32(v)
-			keys = append(keys, keyPart)
-			vals = append(vals, valPart)
-		}
-		part, err := protocache.EncodeMapParts(keys, vals, true)
+		part, err := protocache.EncodeStringMap(m.fIndex, func(v int32) ([]uint32, error) {
+			return protocache.EncodeInt32(v)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -631,18 +627,9 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[26] = field.RawWords()
 		}
 	} else if len(m.fObjects) != 0 {
-		keys := make([][]uint32, 0, len(m.fObjects))
-		vals := make([][]uint32, 0, len(m.fObjects))
-		for k, v := range m.fObjects {
-			keyPart := protocache.EncodeInt32(k)
-			valPart, err := v.Encode()
-			if err != nil {
-				return nil, err
-			}
-			keys = append(keys, keyPart)
-			vals = append(vals, valPart)
-		}
-		part, err := protocache.EncodeMapParts(keys, vals, false)
+		part, err := protocache.EncodeScalarMap(m.fObjects,
+			func(k int32) ([]uint32, error) { return protocache.EncodeInt32(k) },
+			ENCODE_Small)
 		if err != nil {
 			return nil, err
 		}
@@ -656,7 +643,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[27] = field.RawWords()
 		}
 	} else if m.fMatrix != nil {
-		part, err := m.fMatrix.Encode()
+		part, err := ENCODE_Vec2D(m.fMatrix)
 		if err != nil {
 			return nil, err
 		}
@@ -672,7 +659,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[28] = field.RawWords()
 		}
 	} else if len(m.fVector) != 0 {
-		part, err := protocache.EncodeObjectArray(len(m.fVector), func(i int) ([]uint32, error) { return m.fVector[i].Encode() })
+		part, err := protocache.EncodeObjectArray(m.fVector, ENCODE_ArrMap)
 		if err != nil {
 			return nil, err
 		}
@@ -686,7 +673,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[29] = field.RawWords()
 		}
 	} else if m.fArrays != nil {
-		part, err := m.fArrays.Encode()
+		part, err := ENCODE_ArrMap(m.fArrays)
 		if err != nil {
 			return nil, err
 		}
@@ -711,7 +698,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *MainEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(m.Encode()) }
+func (m *MainEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_Main(m)) }
 
 func (m *MainEX) GetI32() int32 {
 	if m.meta.IsVisited(_FIELD_Main_i32, _FIELD_TOTAL_Main) {
@@ -1286,7 +1273,8 @@ func DETECT_CyclicA(data []byte) []byte {
 	if inlined == nil {
 		return nil
 	}
-	if obj := msg.GetField(_FIELD_CyclicA_cyclic).DetectObject(); obj != nil {
+	field := msg.GetField(_FIELD_CyclicA_cyclic)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, DETECT_CyclicB(obj))
 	}
 	return inlined
@@ -1306,7 +1294,7 @@ func TO_CyclicAEX(data []byte) *CyclicAEX {
 
 func (m *CyclicAEX) HasBase() bool { return m.meta.HasBase() }
 
-func (m *CyclicAEX) Encode() ([]uint32, error) {
+func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
@@ -1315,7 +1303,7 @@ func (m *CyclicAEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_CyclicA_value)
 		parts[0] = field.RawWords()
 	} else if m.fValue != 0 {
-		parts[0] = protocache.EncodeInt32(m.fValue)
+		parts[0], _ = protocache.EncodeInt32(m.fValue)
 	}
 	if !m.meta.IsVisited(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA) {
 		field := m.meta.RawField(_FIELD_CyclicA_cyclic)
@@ -1325,7 +1313,7 @@ func (m *CyclicAEX) Encode() ([]uint32, error) {
 			parts[1] = field.RawWords()
 		}
 	} else if m.fCyclic != nil {
-		part, err := m.fCyclic.Encode()
+		part, err := ENCODE_CyclicB(m.fCyclic)
 		if err != nil {
 			return nil, err
 		}
@@ -1336,7 +1324,9 @@ func (m *CyclicAEX) Encode() ([]uint32, error) {
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *CyclicAEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(m.Encode()) }
+func (m *CyclicAEX) Serialize() ([]byte, error) {
+	return protocache.SerializeEncoded(ENCODE_CyclicA(m))
+}
 
 func (m *CyclicAEX) GetValue() int32 {
 	if m.meta.IsVisited(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA) {
@@ -1377,7 +1367,8 @@ func DETECT_CyclicB(data []byte) []byte {
 	if inlined == nil {
 		return nil
 	}
-	if obj := msg.GetField(_FIELD_CyclicB_cyclic).DetectObject(); obj != nil {
+	field := msg.GetField(_FIELD_CyclicB_cyclic)
+	if obj := field.DetectObject(); obj != nil {
 		return protocache.DetectShrink(data, obj, DETECT_CyclicA(obj))
 	}
 	return inlined
@@ -1397,7 +1388,7 @@ func TO_CyclicBEX(data []byte) *CyclicBEX {
 
 func (m *CyclicBEX) HasBase() bool { return m.meta.HasBase() }
 
-func (m *CyclicBEX) Encode() ([]uint32, error) {
+func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
@@ -1406,7 +1397,7 @@ func (m *CyclicBEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_CyclicB_value)
 		parts[0] = field.RawWords()
 	} else if m.fValue != 0 {
-		parts[0] = protocache.EncodeInt32(m.fValue)
+		parts[0], _ = protocache.EncodeInt32(m.fValue)
 	}
 	if !m.meta.IsVisited(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB) {
 		field := m.meta.RawField(_FIELD_CyclicB_cyclic)
@@ -1416,7 +1407,7 @@ func (m *CyclicBEX) Encode() ([]uint32, error) {
 			parts[1] = field.RawWords()
 		}
 	} else if m.fCyclic != nil {
-		part, err := m.fCyclic.Encode()
+		part, err := ENCODE_CyclicA(m.fCyclic)
 		if err != nil {
 			return nil, err
 		}
@@ -1427,7 +1418,9 @@ func (m *CyclicBEX) Encode() ([]uint32, error) {
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *CyclicBEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(m.Encode()) }
+func (m *CyclicBEX) Serialize() ([]byte, error) {
+	return protocache.SerializeEncoded(ENCODE_CyclicB(m))
+}
 
 func (m *CyclicBEX) GetValue() int32 {
 	if m.meta.IsVisited(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB) {
@@ -1484,7 +1477,7 @@ func TO_Deprecated_ValidEX(data []byte) *Deprecated_ValidEX {
 
 func (m *Deprecated_ValidEX) HasBase() bool { return m.meta.HasBase() }
 
-func (m *Deprecated_ValidEX) Encode() ([]uint32, error) {
+func ENCODE_Deprecated_Valid(m *Deprecated_ValidEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
@@ -1493,13 +1486,13 @@ func (m *Deprecated_ValidEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Deprecated_Valid_val)
 		parts[0] = field.RawWords()
 	} else if m.fVal != 0 {
-		parts[0] = protocache.EncodeInt32(m.fVal)
+		parts[0], _ = protocache.EncodeInt32(m.fVal)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
 
 func (m *Deprecated_ValidEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(m.Encode())
+	return protocache.SerializeEncoded(ENCODE_Deprecated_Valid(m))
 }
 
 func (m *Deprecated_ValidEX) GetVal() int32 {
@@ -1542,7 +1535,7 @@ func TO_DeprecatedEX(data []byte) *DeprecatedEX {
 
 func (m *DeprecatedEX) HasBase() bool { return m.meta.HasBase() }
 
-func (m *DeprecatedEX) Encode() ([]uint32, error) {
+func ENCODE_Deprecated(m *DeprecatedEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
@@ -1551,12 +1544,14 @@ func (m *DeprecatedEX) Encode() ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Deprecated_junk)
 		parts[0] = field.RawWords()
 	} else if m.fJunk != 0 {
-		parts[0] = protocache.EncodeInt32(m.fJunk)
+		parts[0], _ = protocache.EncodeInt32(m.fJunk)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *DeprecatedEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(m.Encode()) }
+func (m *DeprecatedEX) Serialize() ([]byte, error) {
+	return protocache.SerializeEncoded(ENCODE_Deprecated(m))
+}
 
 func (m *DeprecatedEX) GetJunk() int32 {
 	if m.meta.IsVisited(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated) {
@@ -1586,14 +1581,16 @@ func TO_ModeDict_ValueEX(data []byte) ModeDict_ValueEX {
 	return out
 }
 
-func (x ModeDict_ValueEX) Encode() ([]uint32, error) {
+func ENCODE_ModeDict_Value(x ModeDict_ValueEX) ([]uint32, error) {
 	if len(x) == 0 {
 		return []uint32{1}, nil
 	}
 	return protocache.EncodeEnumArray([]Mode(x))
 }
 
-func (x ModeDict_ValueEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }
+func (x ModeDict_ValueEX) Serialize() ([]byte, error) {
+	return protocache.SerializeEncoded(ENCODE_ModeDict_Value(x))
+}
 
 func DETECT_ModeDict(data []byte) []byte {
 	return protocache.DetectMap(data, nil, DETECT_ModeDict_Value)
@@ -1614,22 +1611,12 @@ func TO_ModeDictEX(data []byte) ModeDictEX {
 	return out
 }
 
-func (x ModeDictEX) Encode() ([]uint32, error) {
-	if len(x) == 0 {
-		return []uint32{5 << 28}, nil
-	}
-	keys := make([][]uint32, 0, len(x))
-	vals := make([][]uint32, 0, len(x))
-	for k, v := range x {
-		keyPart := protocache.EncodeInt32(k)
-		valPart, err := v.Encode()
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, keyPart)
-		vals = append(vals, valPart)
-	}
-	return protocache.EncodeMapParts(keys, vals, false)
+func ENCODE_ModeDict(x ModeDictEX) ([]uint32, error) {
+	return protocache.EncodeScalarMap(x,
+		func(k int32) ([]uint32, error) { return protocache.EncodeInt32(k) },
+		ENCODE_ModeDict_Value)
 }
 
-func (x ModeDictEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }
+func (x ModeDictEX) Serialize() ([]byte, error) {
+	return protocache.SerializeEncoded(ENCODE_ModeDict(x))
+}

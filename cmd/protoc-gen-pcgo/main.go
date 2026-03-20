@@ -224,8 +224,8 @@ func main() {
 }
 
 type Options struct {
-	EX               bool
-	SkipPkgHierarchy bool
+	EX       bool
+	Relative bool
 }
 
 func parseOptions(raw string) Options {
@@ -236,15 +236,15 @@ func parseOptions(raw string) Options {
 		case "", ".":
 		case "extra", "extra=true":
 			out.EX = true
-		case "flat", "flat=true", "skip_pkg_hierarchy", "skip_pkg_hierarchy=true":
-			out.SkipPkgHierarchy = true
+		case "relative", "relative=true":
+			out.Relative = true
 		}
 	}
 	return out
 }
 
 func outputPrefix(file *protogen.File, opt Options) string {
-	if opt.SkipPkgHierarchy {
+	if opt.Relative {
 		return path.Base(file.GeneratedFilenamePrefix)
 	}
 	return file.GeneratedFilenamePrefix
@@ -722,8 +722,22 @@ func exAliasCtor(imports map[string]string, desc protoreflect.MessageDescriptor)
 	return name
 }
 
-func exAliasSerializeExpr(access string) string {
-	return access + ".Encode()"
+func exEncodeFuncName(desc protoreflect.MessageDescriptor) string {
+	t := typeBook[string(desc.FullName())]
+	return "ENCODE_" + t.GoName
+}
+
+func exEncodeFuncRef(imports map[string]string, desc protoreflect.MessageDescriptor) string {
+	t := typeBook[string(desc.FullName())]
+	name := exEncodeFuncName(desc)
+	if pkg, got := imports[t.Package]; got {
+		return pkg + "." + name
+	}
+	return name
+}
+
+func exEncodeCallExpr(imports map[string]string, desc protoreflect.MessageDescriptor, access string) string {
+	return exEncodeFuncRef(imports, desc) + "(" + access + ")"
 }
 
 func exObjectDetectExpr(field *protogen.Field, imports map[string]string, objectVar string) string {
@@ -939,14 +953,11 @@ func exGoType(imports map[string]string, field *protogen.Field) string {
 	}
 }
 
-func exEncodeExpr(field *protogen.Field, access string) string {
+func exEncodeExpr(field *protogen.Field, imports map[string]string, access string) string {
 	if field.Desc.IsList() {
 		switch field.Desc.Kind() {
 		case protoreflect.MessageKind:
-			if exIsAliasMessage(field.Desc.Message()) {
-				return "protocache.EncodeObjectArray(len(" + access + "), func(i int) ([]uint32, error) { return " + exAliasSerializeExpr(access+"[i]") + " })"
-			}
-			return "protocache.EncodeObjectArray(len(" + access + "), func(i int) ([]uint32, error) { return " + access + "[i].Encode() })"
+			return "protocache.EncodeObjectArray(" + access + ", " + exEncodeFuncRef(imports, field.Desc.Message()) + ")"
 		case protoreflect.BytesKind:
 			return "protocache.EncodeBytesArray(" + access + ")"
 		case protoreflect.StringKind:
@@ -974,9 +985,9 @@ func exEncodeExpr(field *protogen.Field, access string) string {
 	switch field.Desc.Kind() {
 	case protoreflect.MessageKind:
 		if exIsAliasMessage(field.Desc.Message()) {
-			return exAliasSerializeExpr(access)
+			return exEncodeCallExpr(imports, field.Desc.Message(), access)
 		}
-		return access + ".Encode()"
+		return exEncodeCallExpr(imports, field.Desc.Message(), access)
 	case protoreflect.BytesKind:
 		return "protocache.EncodeBytes(" + access + ")"
 	case protoreflect.StringKind:
@@ -1053,8 +1064,36 @@ func exMapKeyEncodeExpr(desc protoreflect.FieldDescriptor, access string) string
 	}
 }
 
-func exMapKeyEncodeNeedsErr(desc protoreflect.FieldDescriptor) bool {
-	return desc.Kind() == protoreflect.StringKind
+func exMapKeyEncodeFuncExpr(desc protoreflect.FieldDescriptor) string {
+	switch desc.Kind() {
+	case protoreflect.StringKind:
+		return "protocache.EncodeString"
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return "func(k uint64) ([]uint32, error) { return protocache.EncodeUint64(k) }"
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		return "func(k int64) ([]uint32, error) { return protocache.EncodeInt64(k) }"
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return "func(k uint32) ([]uint32, error) { return protocache.EncodeUint32(k) }"
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		return "func(k int32) ([]uint32, error) { return protocache.EncodeInt32(k) }"
+	default:
+		panic("unsupported map key type")
+	}
+}
+
+func exMapKeyEncodeFuncLines(desc protoreflect.FieldDescriptor) []string {
+	switch desc.Kind() {
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return []string{"func(k uint64) ([]uint32, error) { return protocache.EncodeUint64(k) }"}
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		return []string{"func(k int64) ([]uint32, error) { return protocache.EncodeInt64(k) }"}
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return []string{"func(k uint32) ([]uint32, error) { return protocache.EncodeUint32(k) }"}
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		return []string{"func(k int32) ([]uint32, error) { return protocache.EncodeInt32(k) }"}
+	default:
+		return nil
+	}
 }
 
 func exEncodeNeedsErr(field *protogen.Field) bool {
@@ -1066,6 +1105,95 @@ func exEncodeNeedsErr(field *protogen.Field) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func exValueEncodeFuncExpr(field *protogen.Field, imports map[string]string) string {
+	switch field.Desc.Kind() {
+	case protoreflect.MessageKind:
+		return exEncodeFuncRef(imports, field.Desc.Message())
+	case protoreflect.BytesKind:
+		return "protocache.EncodeBytes"
+	case protoreflect.StringKind:
+		return "protocache.EncodeString"
+	case protoreflect.DoubleKind:
+		return "func(v float64) ([]uint32, error) { return protocache.EncodeFloat64(v) }"
+	case protoreflect.FloatKind:
+		return "func(v float32) ([]uint32, error) { return protocache.EncodeFloat32(v) }"
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return "func(v uint64) ([]uint32, error) { return protocache.EncodeUint64(v) }"
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		return "func(v int64) ([]uint32, error) { return protocache.EncodeInt64(v) }"
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return "func(v uint32) ([]uint32, error) { return protocache.EncodeUint32(v) }"
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		return "func(v int32) ([]uint32, error) { return protocache.EncodeInt32(v) }"
+	case protoreflect.BoolKind:
+		return "func(v bool) ([]uint32, error) { return protocache.EncodeBool(v) }"
+	case protoreflect.EnumKind:
+		return "func(v " + exGoType(imports, field) + ") ([]uint32, error) { return protocache.EncodeInt32(int32(v)) }"
+	default:
+		panic("unsupported map value type")
+	}
+}
+
+func exValueEncodeFuncLines(field *protogen.Field, imports map[string]string) []string {
+	switch field.Desc.Kind() {
+	case protoreflect.DoubleKind:
+		return []string{"func(v float64) ([]uint32, error) {", "	return protocache.EncodeFloat64(v)", "}"}
+	case protoreflect.FloatKind:
+		return []string{"func(v float32) ([]uint32, error) {", "	return protocache.EncodeFloat32(v)", "}"}
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return []string{"func(v uint64) ([]uint32, error) {", "	return protocache.EncodeUint64(v)", "}"}
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		return []string{"func(v int64) ([]uint32, error) {", "	return protocache.EncodeInt64(v)", "}"}
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return []string{"func(v uint32) ([]uint32, error) {", "	return protocache.EncodeUint32(v)", "}"}
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		return []string{"func(v int32) ([]uint32, error) {", "	return protocache.EncodeInt32(v)", "}"}
+	case protoreflect.BoolKind:
+		return []string{"func(v bool) ([]uint32, error) {", "	return protocache.EncodeBool(v)", "}"}
+	case protoreflect.EnumKind:
+		return []string{"func(v " + exGoType(imports, field) + ") ([]uint32, error) {", "	return protocache.EncodeInt32(int32(v))", "}"}
+	default:
+		return nil
+	}
+}
+
+func exMapEncodeExpr(field *protogen.Field, imports map[string]string, access string) string {
+	valueField := exMapValueField(field)
+	if field.Desc.MapKey().Kind() == protoreflect.StringKind {
+		return "protocache.EncodeStringMap(" + access + ", " + exValueEncodeFuncExpr(valueField, imports) + ")"
+	}
+	return "protocache.EncodeScalarMap(" + access + ", " + exMapKeyEncodeFuncExpr(field.Desc.MapKey()) + ", " + exValueEncodeFuncExpr(valueField, imports) + ")"
+}
+
+func exMapEncodeLines(field *protogen.Field, imports map[string]string, access, prefix string) []string {
+	valueField := exMapValueField(field)
+	if field.Desc.MapKey().Kind() == protoreflect.StringKind {
+		if valueLines := exValueEncodeFuncLines(valueField, imports); valueLines != nil {
+			return []string{
+				prefix + "protocache.EncodeStringMap(" + access + ", " + valueLines[0],
+				valueLines[1],
+				valueLines[2] + ")",
+			}
+		}
+		return []string{prefix + exMapEncodeExpr(field, imports, access)}
+	}
+	keyLines := exMapKeyEncodeFuncLines(field.Desc.MapKey())
+	if valueLines := exValueEncodeFuncLines(valueField, imports); valueLines != nil {
+		return []string{
+			prefix + "protocache.EncodeScalarMap(" + access + ",",
+			keyLines[0] + ",",
+			valueLines[0],
+			valueLines[1],
+			valueLines[2] + ")",
+		}
+	}
+	return []string{
+		prefix + "protocache.EncodeScalarMap(" + access + ",",
+		keyLines[0] + ",",
+		exValueEncodeFuncExpr(valueField, imports) + ")",
 	}
 }
 
@@ -1338,42 +1466,7 @@ func exAliasDecodeExpr(field *protogen.Field, imports map[string]string, target,
 func exAliasEncodeExpr(field *protogen.Field, imports map[string]string, access string) []string {
 	switch {
 	case field.Desc.IsMap():
-		valueField := exMapValueField(field)
-		lines := []string{
-			"if len(" + access + ") == 0 {",
-			"	return []uint32{5 << 28}, nil",
-			"}",
-			"keys := make([][]uint32, 0, len(" + access + "))",
-			"vals := make([][]uint32, 0, len(" + access + "))",
-			"for k, v := range " + access + " {",
-		}
-		if exMapKeyEncodeNeedsErr(field.Desc.MapKey()) {
-			lines = append(lines,
-				"	keyPart, err := "+exMapKeyEncodeExpr(field.Desc.MapKey(), "k"),
-				"	if err != nil {",
-				"		return nil, err",
-				"	}",
-			)
-		} else {
-			lines = append(lines, "	keyPart := "+exMapKeyEncodeExpr(field.Desc.MapKey(), "k"))
-		}
-		if exEncodeNeedsErr(valueField) {
-			lines = append(lines,
-				"	valPart, err := "+exEncodeExpr(valueField, "v"),
-				"	if err != nil {",
-				"		return nil, err",
-				"	}",
-			)
-		} else {
-			lines = append(lines, "	valPart := "+exEncodeExpr(valueField, "v"))
-		}
-		lines = append(lines,
-			"	keys = append(keys, keyPart)",
-			"	vals = append(vals, valPart)",
-			"}",
-			"return protocache.EncodeMapParts(keys, vals, "+fmt.Sprint(field.Desc.MapKey().Kind() == protoreflect.StringKind)+")",
-		)
-		return lines
+		return []string{"return " + exMapEncodeExpr(field, imports, access)}
 	case field.Desc.IsList():
 		switch field.Desc.Kind() {
 		case protoreflect.MessageKind:
@@ -1381,7 +1474,7 @@ func exAliasEncodeExpr(field *protogen.Field, imports map[string]string, access 
 				"if len(" + access + ") == 0 {",
 				"	return []uint32{1}, nil",
 				"}",
-				"return protocache.EncodeObjectArray(len(" + access + "), func(i int) ([]uint32, error) { return " + exAliasSerializeExpr(access+"[i]") + " })",
+				"return protocache.EncodeObjectArray(" + access + ", " + exEncodeFuncRef(imports, field.Desc.Message()) + ")",
 			}
 		case protoreflect.BytesKind:
 			return []string{
@@ -1439,13 +1532,17 @@ func GenEXAlias(g *protogen.GeneratedFile, imports map[string]string, one *proto
 	g.P("	return out")
 	g.P("}")
 	g.P()
-	g.P("func (x ", typeName, ") Encode() ([]uint32, error) {")
-	for _, line := range exAliasEncodeExpr(field, imports, "x") {
+	g.P("func ", exEncodeFuncName(one.Desc), "(x ", typeName, ") ([]uint32, error) {")
+	lines := exAliasEncodeExpr(field, imports, "x")
+	if field.Desc.IsMap() {
+		lines = exMapEncodeLines(field, imports, "x", "return ")
+	}
+	for _, line := range lines {
 		g.P("	", line)
 	}
 	g.P("}")
 	g.P()
-	g.P("func (x ", typeName, ") Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }")
+	g.P("func (x ", typeName, ") Serialize() ([]byte, error) { return protocache.SerializeEncoded(", exEncodeFuncName(one.Desc), "(x)) }")
 	return nil
 }
 
@@ -1549,14 +1646,21 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P("	if inlined == nil {")
 		g.P("		return nil")
 		g.P("	}")
+		firstDetectedField := true
 		for i := len(fields) - 1; i >= 0; i-- {
 			field := fields[i]
 			if !exNeedsObjectDetect(field) {
 				continue
 			}
-			g.P("	if obj := msg.GetField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ").DetectObject(); obj != nil {")
+			assign := ":="
+			if !firstDetectedField {
+				assign = "="
+			}
+			g.P("	field ", assign, " msg.GetField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
+			g.P("	if obj := field.DetectObject(); obj != nil {")
 			g.P("		return protocache.DetectShrink(data, obj, ", exObjectDetectExpr(field, imports, "obj"), ")")
 			g.P("	}")
+			firstDetectedField = false
 		}
 		g.P("	return inlined")
 		g.P("}")
@@ -1579,7 +1683,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P()
 		g.P("func (m *", one.GoIdent.GoName, "EX) HasBase() bool { return m.meta.HasBase() }")
 		g.P()
-		g.P("func (m *", one.GoIdent.GoName, "EX) Encode() ([]uint32, error) {")
+		g.P("func ", exEncodeFuncName(one.Desc), "(m *", one.GoIdent.GoName, "EX) ([]uint32, error) {")
 		g.P("	if m == nil {")
 		g.P("		return []uint32{0}, nil")
 		g.P("	}")
@@ -1602,30 +1706,9 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					} else {
 						g.P("	} else {")
 					}
-					valField := exMapValueField(field)
-					g.P("		keys := make([][]uint32, 0, len(m.", name, "))")
-					g.P("		vals := make([][]uint32, 0, len(m.", name, "))")
-					g.P("		for k, v := range m.", name, " {")
-					if exMapKeyEncodeNeedsErr(field.Desc.MapKey()) {
-						g.P("			keyPart, err := ", exMapKeyEncodeExpr(field.Desc.MapKey(), "k"))
-						g.P("			if err != nil {")
-						g.P("				return nil, err")
-						g.P("			}")
-					} else {
-						g.P("			keyPart := ", exMapKeyEncodeExpr(field.Desc.MapKey(), "k"))
+					for _, line := range exMapEncodeLines(field, imports, "m."+name, "part, err := ") {
+						g.P("		", line)
 					}
-					if exEncodeNeedsErr(valField) {
-						g.P("			valPart, err := ", exEncodeExpr(valField, "v"))
-						g.P("			if err != nil {")
-						g.P("				return nil, err")
-						g.P("			}")
-					} else {
-						g.P("			valPart := ", exEncodeExpr(valField, "v"))
-					}
-					g.P("			keys = append(keys, keyPart)")
-					g.P("			vals = append(vals, valPart)")
-					g.P("		}")
-					g.P("		part, err := protocache.EncodeMapParts(keys, vals, ", field.Desc.MapKey().Kind() == protoreflect.StringKind, ")")
 					g.P("		if err != nil {")
 					g.P("			return nil, err")
 					g.P("		}")
@@ -1637,7 +1720,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					} else {
 						g.P("	} else {")
 					}
-					g.P("		part, err := ", exEncodeExpr(field, "m."+name))
+					g.P("		part, err := ", exEncodeExpr(field, imports, "m."+name))
 					g.P("		if err != nil {")
 					g.P("			return nil, err")
 					g.P("		}")
@@ -1649,7 +1732,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					} else {
 						g.P("	} else {")
 					}
-					g.P("		part, err := ", exEncodeExpr(field, "m."+name))
+					g.P("		part, err := ", exEncodeExpr(field, imports, "m."+name))
 					g.P("		if err != nil {")
 					g.P("			return nil, err")
 					g.P("		}")
@@ -1664,13 +1747,13 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 						g.P("	} else {")
 					}
 					if exEncodeNeedsErr(field) {
-						g.P("		part, err := ", exEncodeExpr(field, "m."+name))
+						g.P("		part, err := ", exEncodeExpr(field, imports, "m."+name))
 						g.P("		if err != nil {")
 						g.P("			return nil, err")
 						g.P("		}")
 						g.P("		parts[", id, "] = part")
 					} else {
-						g.P("		parts[", id, "] = ", exEncodeExpr(field, "m."+name))
+						g.P("		parts[", id, "], _ = ", exEncodeExpr(field, imports, "m."+name))
 					}
 					g.P("	}")
 				}
@@ -1690,7 +1773,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P("	return protocache.EncodeMessageParts(parts)")
 		g.P("}")
 		g.P()
-		g.P("func (m *", one.GoIdent.GoName, "EX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(m.Encode()) }")
+		g.P("func (m *", one.GoIdent.GoName, "EX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(", exEncodeFuncName(one.Desc), "(m)) }")
 
 		for _, field := range fields {
 			if !exSupportsField(field.Desc) {

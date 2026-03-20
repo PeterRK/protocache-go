@@ -14,9 +14,10 @@ See detail in [C++ version](https://github.com/peterrk/protocache).
 
 ## Code Gen
 ```sh
-protoc --pcgo_out=. [--pcgo_opt=extra] test.proto
+protoc --pcgo_out=. [--pcgo_opt=extra,relative] test.proto
 ```
 A protobuf compiler plugin called `protoc-gen-pcgo` is [available](cmd/protoc-gen-pcgo) to generate Go file.
+Use the `relative` option to emit generated files relative to the input proto path instead of recreating the `go_package` directory hierarchy.
 
 ## Basic APIs
 ```go

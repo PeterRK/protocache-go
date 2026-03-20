@@ -57,3 +57,7 @@ func testHash(t *testing.T) {
 		assert(t, w[0] == expected[i][0] && w[1] == expected[i][1])
 	}
 }
+
+func TestHash(t *testing.T) {
+	testHash(t)
+}

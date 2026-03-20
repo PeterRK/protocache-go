@@ -59,65 +59,65 @@ type Field struct {
 	data []byte
 }
 
-func (f Field) IsValid() bool {
+func (f *Field) IsValid() bool {
 	return len(f.data) != 0
 }
 
-func (f Field) RawWords() []uint32 {
+func (f *Field) RawWords() []uint32 {
 	if len(f.data) == 0 {
 		return nil
 	}
 	return castBytesToWords(f.data)
 }
 
-func (f Field) GetBool() bool {
+func (f *Field) GetBool() bool {
 	if len(f.data) != 4 {
 		return false
 	}
 	return f.data[0] != 0
 }
 
-func (f Field) GetEnumValue() EnumValue {
+func (f *Field) GetEnumValue() EnumValue {
 	return EnumValue(f.GetUint32())
 }
 
-func (f Field) GetUint32() uint32 {
+func (f *Field) GetUint32() uint32 {
 	if len(f.data) != 4 {
 		return 0
 	}
 	return getUint32(f.data)
 }
 
-func (f Field) GetInt32() int32 {
+func (f *Field) GetInt32() int32 {
 	return int32(f.GetUint32())
 }
 
-func (f Field) GetUint64() uint64 {
+func (f *Field) GetUint64() uint64 {
 	if len(f.data) != 8 {
 		return 0
 	}
 	return getUint64(f.data)
 }
 
-func (f Field) GetInt64() int64 {
+func (f *Field) GetInt64() int64 {
 	return int64(f.GetUint64())
 }
 
-func (f Field) GetFloat32() float32 {
+func (f *Field) GetFloat32() float32 {
 	if len(f.data) != 4 {
 		return 0
 	}
 	return math.Float32frombits(getUint32(f.data))
 }
 
-func (f Field) GetFloat64() float64 {
+func (f *Field) GetFloat64() float64 {
 	if len(f.data) != 8 {
 		return 0
 	}
 	return math.Float64frombits(getUint64(f.data))
 }
 
-func (f Field) GetObject() []byte {
+func (f *Field) GetObject() []byte {
 	if len(f.data) < 4 {
 		return nil
 	}
@@ -132,62 +132,62 @@ func (f Field) GetObject() []byte {
 	return fullSizeSlice(f.data)[off:]
 }
 
-func (f Field) GetBytes() []byte {
+func (f *Field) GetBytes() []byte {
 	return extractBytes(f.GetObject())
 }
 
-func (f Field) GetString() string {
+func (f *Field) GetString() string {
 	return extractString(f.GetObject())
 }
 
-func (f Field) GetBoolArray() []bool {
+func (f *Field) GetBoolArray() []bool {
 	return extractBoolArray(f.GetObject())
 }
 
-func (f Field) GetEnumValueArray() []EnumValue {
+func (f *Field) GetEnumValueArray() []EnumValue {
 	arr := AsArray(f.GetObject())
 	return arr.EnumValue()
 }
 
-func (f Field) GetInt32Array() []int32 {
+func (f *Field) GetInt32Array() []int32 {
 	arr := AsArray(f.GetObject())
 	return arr.Int32()
 }
 
-func (f Field) GetUint32Array() []uint32 {
+func (f *Field) GetUint32Array() []uint32 {
 	arr := AsArray(f.GetObject())
 	return arr.Uint32()
 }
 
-func (f Field) GetInt64Array() []int64 {
+func (f *Field) GetInt64Array() []int64 {
 	arr := AsArray(f.GetObject())
 	return arr.Int64()
 }
 
-func (f Field) GetUint64Array() []uint64 {
+func (f *Field) GetUint64Array() []uint64 {
 	arr := AsArray(f.GetObject())
 	return arr.Uint64()
 }
 
-func (f Field) GetFloat32Array() []float32 {
+func (f *Field) GetFloat32Array() []float32 {
 	arr := AsArray(f.GetObject())
 	return arr.Float32()
 }
 
-func (f Field) GetFloat64Array() []float64 {
+func (f *Field) GetFloat64Array() []float64 {
 	arr := AsArray(f.GetObject())
 	return arr.Float64()
 }
 
-func (f Field) GetMessage() Message {
+func (f *Field) GetMessage() Message {
 	return AsMessage(f.GetObject())
 }
 
-func (f Field) GetArray() Array {
+func (f *Field) GetArray() Array {
 	return AsArray(f.GetObject())
 }
 
-func (f Field) GetMap() Map {
+func (f *Field) GetMap() Map {
 	return AsMap(f.GetObject())
 }
 
@@ -730,7 +730,7 @@ func DetectBytes(data []byte) []byte {
 
 // DetectObject returns the referenced object bytes for a non-inline object field.
 // It returns nil for invalid fields, scalar fields, and inline object fields.
-func (f Field) DetectObject() []byte {
+func (f *Field) DetectObject() []byte {
 	obj := f.GetObject()
 	if obj == nil || unsafe.SliceData(obj) == unsafe.SliceData(f.data) {
 		return nil

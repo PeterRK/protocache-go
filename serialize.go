@@ -20,32 +20,32 @@ func SerializeEncoded(data []uint32, err error) ([]byte, error) {
 	return WordsToBytes(data), err
 }
 
-func EncodeBool(v bool) []uint32 {
-	return serializeBool(v)
+func EncodeBool(v bool) ([]uint32, error) {
+	return serializeBool(v), nil
 }
 
-func EncodeInt32(v int32) []uint32 {
-	return serializeScalar(v)
+func EncodeInt32(v int32) ([]uint32, error) {
+	return serializeScalar(v), nil
 }
 
-func EncodeUint32(v uint32) []uint32 {
-	return serializeScalar(v)
+func EncodeUint32(v uint32) ([]uint32, error) {
+	return serializeScalar(v), nil
 }
 
-func EncodeInt64(v int64) []uint32 {
-	return serializeScalar(v)
+func EncodeInt64(v int64) ([]uint32, error) {
+	return serializeScalar(v), nil
 }
 
-func EncodeUint64(v uint64) []uint32 {
-	return serializeScalar(v)
+func EncodeUint64(v uint64) ([]uint32, error) {
+	return serializeScalar(v), nil
 }
 
-func EncodeFloat32(v float32) []uint32 {
-	return serializeScalar(v)
+func EncodeFloat32(v float32) ([]uint32, error) {
+	return serializeScalar(v), nil
 }
 
-func EncodeFloat64(v float64) []uint32 {
-	return serializeScalar(v)
+func EncodeFloat64(v float64) ([]uint32, error) {
+	return serializeScalar(v), nil
 }
 
 func EncodeBytes(data []byte) ([]uint32, error) {
@@ -61,27 +61,27 @@ func EncodeMessageParts(parts [][]uint32) ([]uint32, error) {
 }
 
 func EncodeInt32Array(vec []int32) ([]uint32, error) {
-	return serializeScalarArray(len(vec), func(i int) int32 { return vec[i] })
+	return serializeScalarVector(vec)
 }
 
 func EncodeUint32Array(vec []uint32) ([]uint32, error) {
-	return serializeScalarArray(len(vec), func(i int) uint32 { return vec[i] })
+	return serializeScalarVector(vec)
 }
 
 func EncodeInt64Array(vec []int64) ([]uint32, error) {
-	return serializeScalarArray(len(vec), func(i int) int64 { return vec[i] })
+	return serializeScalarVector(vec)
 }
 
 func EncodeUint64Array(vec []uint64) ([]uint32, error) {
-	return serializeScalarArray(len(vec), func(i int) uint64 { return vec[i] })
+	return serializeScalarVector(vec)
 }
 
 func EncodeFloat32Array(vec []float32) ([]uint32, error) {
-	return serializeScalarArray(len(vec), func(i int) float32 { return vec[i] })
+	return serializeScalarVector(vec)
 }
 
 func EncodeFloat64Array(vec []float64) ([]uint32, error) {
-	return serializeScalarArray(len(vec), func(i int) float64 { return vec[i] })
+	return serializeScalarVector(vec)
 }
 
 func EncodeBoolArray(vec []bool) ([]uint32, error) {
@@ -95,7 +95,7 @@ func EncodeBoolArray(vec []bool) ([]uint32, error) {
 }
 
 func EncodeEnumArray[T Enum](vec []T) ([]uint32, error) {
-	return serializeScalarArray(len(vec), func(i int) int32 { return int32(vec[i]) })
+	return serializeScalarVector(upCast[T, int32](vec))
 }
 
 func EncodeStringArray(vec []string) ([]uint32, error) {
@@ -110,12 +110,51 @@ func EncodeBytesArray(vec [][]byte) ([]uint32, error) {
 	})
 }
 
-func EncodeObjectArray(size int, get func(i int) ([]uint32, error)) ([]uint32, error) {
-	return serializeArray(size, get)
+func EncodeObjectArray[T any](vec []T, encoder func(T) ([]uint32, error)) ([]uint32, error) {
+	return serializeArray(len(vec), func(i int) ([]uint32, error) {
+		return encoder(vec[i])
+	})
 }
 
-func EncodeMapParts(keys [][]uint32, vals [][]uint32, stringKey bool) ([]uint32, error) {
-	return encodeMapParts(keys, vals, stringKey)
+func EncodeScalarMap[K scalar, V any](x map[K]V,
+	keyEnc func(K) ([]uint32, error), valEnc func(V) ([]uint32, error)) ([]uint32, error) {
+	if len(x) == 0 {
+		return []uint32{5 << 28}, nil
+	}
+	keys := make([][]uint32, 0, len(x))
+	vals := make([][]uint32, 0, len(x))
+	for k, v := range x {
+		keyPart, _ := keyEnc(k)
+		valPart, err := valEnc(v)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, keyPart)
+		vals = append(vals, valPart)
+	}
+	return encodeMapParts(keys, vals, false)
+}
+
+func EncodeStringMap[V any](x map[string]V,
+	encoder func(V) ([]uint32, error)) ([]uint32, error) {
+	if len(x) == 0 {
+		return []uint32{5 << 28}, nil
+	}
+	keys := make([][]uint32, 0, len(x))
+	vals := make([][]uint32, 0, len(x))
+	for k, v := range x {
+		keyPart, err := EncodeString(k)
+		if err != nil {
+			return nil, err
+		}
+		valPart, err := encoder(v)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, keyPart)
+		vals = append(vals, valPart)
+	}
+	return encodeMapParts(keys, vals, true)
 }
 
 func BytesToWords(data []byte) []uint32 {
@@ -380,6 +419,18 @@ func serializeScalarArray[T scalar](size int, get func(i int) T) ([]uint32, erro
 	for i := 0; i < size; i++ {
 		vec[i] = get(i)
 	}
+	return out, nil
+}
+
+func serializeScalarVector[T scalar](src []T) ([]uint32, error) {
+	m := sizeof[T]() / 4
+	out := make([]uint32, 1+len(src)*m)
+	if len(out) >= (1 << 30) {
+		return nil, errors.New("array size overflow")
+	}
+	out[0] = uint32((len(src) << 2) | m)
+	vec := upCast[uint32, T](out[1:])
+	copy(vec, src)
 	return out, nil
 }
 

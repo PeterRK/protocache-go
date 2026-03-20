@@ -1,22 +1,41 @@
-//go:build linux
-
 package test
 
 import (
+	"errors"
 	"os"
 	"testing"
 
 	pc "github.com/peterrk/protocache-go"
 	"github.com/peterrk/protocache-go/reflect"
 	"github.com/peterrk/protocache-go/reflect/compiler"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
-func TestReflection(t *testing.T) {
-	raw, err := os.ReadFile("test.proto")
-	assert(t, err == nil)
+func parseProtoForTest(t testing.TB, path string) *descriptorpb.FileDescriptorProto {
+	t.Helper()
 
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	proto, err := compiler.ParseProto(raw)
-	assert(t, err == nil)
+	if errors.Is(err, compiler.ErrUnsupported) {
+		t.Skip(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return proto
+}
+
+func TestReflection(t *testing.T) {
+	proto := parseProtoForTest(t, "reflect-test.proto")
+
+	var taggedPool reflect.DescriptorPool
+	assert(t, taggedPool.Register(proto))
+	assert(t, taggedPool.Find("test.Main") != nil)
+
+	proto = parseProtoForTest(t, "test.proto")
 
 	var pool reflect.DescriptorPool
 	assert(t, pool.Register(proto))
@@ -94,6 +113,13 @@ func TestReflection(t *testing.T) {
 	assert(t, field.IsRepeated())
 	assert(t, !field.IsMap())
 	assert(t, field.Value() == reflect.TYPE_FLOAT32)
+
+	raw := loadMain(t)
+	msg := pc.AsMessage(raw)
+	field = root.Lookup("f32")
+	assert(t, field != nil)
+	unit := msg.GetField(field.Id())
+	assert(t, unit.GetFloat32() == -2.1)
 }
 
 /*
@@ -123,14 +149,7 @@ func TestReflection(t *testing.T) {
 */
 
 func BenchmarkProtoCacheReflect(b *testing.B) {
-	raw, err := os.ReadFile("test.proto")
-	if err != nil {
-		b.Fatal(err)
-	}
-	proto, err := compiler.ParseProto(raw)
-	if err != nil {
-		b.Fatal(err)
-	}
+	proto := parseProtoForTest(b, "test.proto")
 	var pool reflect.DescriptorPool
 	if !pool.Register(proto) {
 		b.Fatal("fail to register schema")
@@ -139,7 +158,7 @@ func BenchmarkProtoCacheReflect(b *testing.B) {
 	if descriptor == nil {
 		b.Fatal("fail to get root")
 	}
-	raw, err = os.ReadFile("test.pc")
+	raw, err := os.ReadFile("test.pc")
 	if err != nil {
 		b.Fatal(err)
 	}
