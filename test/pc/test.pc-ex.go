@@ -436,153 +436,135 @@ func (m *MainEX) Encode() ([]uint32, error) {
 	} else if m.fF64 != 0 {
 		parts[9] = protocache.EncodeFloat64(m.fF64)
 	}
-	if m.meta.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
-		if m.fObject != nil {
-			part, err := m.fObject.Encode()
-			if err != nil {
-				return nil, err
-			}
-			if len(part) > 1 {
-				parts[10] = part
-			}
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_object)
 		if obj := field.DetectObject(); obj != nil {
 			parts[10] = protocache.BytesToWords(DETECT_Small(obj))
 		} else {
 			parts[10] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_i32v, _FIELD_TOTAL_Main) {
-		if len(m.fI32V) != 0 {
-			part, err := protocache.EncodeInt32Array(m.fI32V)
-			if err != nil {
-				return nil, err
-			}
-			parts[11] = part
+	} else if m.fObject != nil {
+		part, err := m.fObject.Encode()
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		if len(part) > 1 {
+			parts[10] = part
+		}
+	}
+	if !m.meta.IsVisited(_FIELD_Main_i32v, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_i32v)
 		if obj := field.DetectObject(); obj != nil {
 			parts[11] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
 			parts[11] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_u64v, _FIELD_TOTAL_Main) {
-		if len(m.fU64V) != 0 {
-			part, err := protocache.EncodeUint64Array(m.fU64V)
-			if err != nil {
-				return nil, err
-			}
-			parts[12] = part
+	} else if len(m.fI32V) != 0 {
+		part, err := protocache.EncodeInt32Array(m.fI32V)
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[11] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_u64v, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_u64v)
 		if obj := field.DetectObject(); obj != nil {
 			parts[12] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
 			parts[12] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_strv, _FIELD_TOTAL_Main) {
-		if len(m.fStrv) != 0 {
-			part, err := protocache.EncodeStringArray(m.fStrv)
-			if err != nil {
-				return nil, err
-			}
-			parts[13] = part
+	} else if len(m.fU64V) != 0 {
+		part, err := protocache.EncodeUint64Array(m.fU64V)
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[12] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_strv, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_strv)
 		if obj := field.DetectObject(); obj != nil {
 			parts[13] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
 		} else {
 			parts[13] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_datav, _FIELD_TOTAL_Main) {
-		if len(m.fDatav) != 0 {
-			part, err := protocache.EncodeBytesArray(m.fDatav)
-			if err != nil {
-				return nil, err
-			}
-			parts[14] = part
+	} else if len(m.fStrv) != 0 {
+		part, err := protocache.EncodeStringArray(m.fStrv)
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[13] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_datav, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_datav)
 		if obj := field.DetectObject(); obj != nil {
 			parts[14] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
 		} else {
 			parts[14] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_f32v, _FIELD_TOTAL_Main) {
-		if len(m.fF32V) != 0 {
-			part, err := protocache.EncodeFloat32Array(m.fF32V)
-			if err != nil {
-				return nil, err
-			}
-			parts[15] = part
+	} else if len(m.fDatav) != 0 {
+		part, err := protocache.EncodeBytesArray(m.fDatav)
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[14] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_f32v, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_f32v)
 		if obj := field.DetectObject(); obj != nil {
 			parts[15] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
 			parts[15] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_f64v, _FIELD_TOTAL_Main) {
-		if len(m.fF64V) != 0 {
-			part, err := protocache.EncodeFloat64Array(m.fF64V)
-			if err != nil {
-				return nil, err
-			}
-			parts[16] = part
+	} else if len(m.fF32V) != 0 {
+		part, err := protocache.EncodeFloat32Array(m.fF32V)
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[15] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_f64v, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_f64v)
 		if obj := field.DetectObject(); obj != nil {
 			parts[16] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
 			parts[16] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_flags, _FIELD_TOTAL_Main) {
-		if len(m.fFlags) != 0 {
-			part, err := protocache.EncodeBoolArray(m.fFlags)
-			if err != nil {
-				return nil, err
-			}
-			parts[17] = part
+	} else if len(m.fF64V) != 0 {
+		part, err := protocache.EncodeFloat64Array(m.fF64V)
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[16] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_flags, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_flags)
 		if obj := field.DetectObject(); obj != nil {
 			parts[17] = protocache.BytesToWords(protocache.DetectBytes(obj))
 		} else {
 			parts[17] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_objectv, _FIELD_TOTAL_Main) {
-		if len(m.fObjectv) != 0 {
-			part, err := protocache.EncodeObjectArray(len(m.fObjectv), func(i int) ([]uint32, error) {
-				return m.fObjectv[i].Encode()
-			})
-			if err != nil {
-				return nil, err
-			}
-			parts[18] = part
+	} else if len(m.fFlags) != 0 {
+		part, err := protocache.EncodeBoolArray(m.fFlags)
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[17] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_objectv, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_objectv)
 		if obj := field.DetectObject(); obj != nil {
 			parts[18] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_Small))
 		} else {
 			parts[18] = field.RawWords()
 		}
+	} else if len(m.fObjectv) != 0 {
+		part, err := protocache.EncodeObjectArray(len(m.fObjectv), func(i int) ([]uint32, error) {
+			return m.fObjectv[i].Encode()
+		})
+		if err != nil {
+			return nil, err
+		}
+		parts[18] = part
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_u32, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_u32)
@@ -620,132 +602,120 @@ func (m *MainEX) Encode() ([]uint32, error) {
 	} else if m.fTS64 != 0 {
 		parts[24] = protocache.EncodeInt64(m.fTS64)
 	}
-	if m.meta.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {
-		if len(m.fIndex) != 0 {
-			keys := make([][]uint32, 0, len(m.fIndex))
-			vals := make([][]uint32, 0, len(m.fIndex))
-			for k, v := range m.fIndex {
-				keyPart, err := protocache.EncodeString(k)
-				if err != nil {
-					return nil, err
-				}
-				valPart := protocache.EncodeInt32(v)
-				keys = append(keys, keyPart)
-				vals = append(vals, valPart)
-			}
-			part, err := protocache.EncodeMapParts(keys, vals, true)
-			if err != nil {
-				return nil, err
-			}
-			parts[25] = part
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_index)
 		if obj := field.DetectObject(); obj != nil {
 			parts[25] = protocache.BytesToWords(protocache.DetectMap(obj, protocache.DetectBytes, nil))
 		} else {
 			parts[25] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_objects, _FIELD_TOTAL_Main) {
-		if len(m.fObjects) != 0 {
-			keys := make([][]uint32, 0, len(m.fObjects))
-			vals := make([][]uint32, 0, len(m.fObjects))
-			for k, v := range m.fObjects {
-				keyPart := protocache.EncodeInt32(k)
-				valPart, err := v.Encode()
-				if err != nil {
-					return nil, err
-				}
-				if len(valPart) <= 1 {
-					valPart = nil
-				}
-				keys = append(keys, keyPart)
-				vals = append(vals, valPart)
-			}
-			part, err := protocache.EncodeMapParts(keys, vals, false)
+	} else if len(m.fIndex) != 0 {
+		keys := make([][]uint32, 0, len(m.fIndex))
+		vals := make([][]uint32, 0, len(m.fIndex))
+		for k, v := range m.fIndex {
+			keyPart, err := protocache.EncodeString(k)
 			if err != nil {
 				return nil, err
 			}
-			parts[26] = part
+			valPart := protocache.EncodeInt32(v)
+			keys = append(keys, keyPart)
+			vals = append(vals, valPart)
 		}
-	} else {
+		part, err := protocache.EncodeMapParts(keys, vals, true)
+		if err != nil {
+			return nil, err
+		}
+		parts[25] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_objects, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_objects)
 		if obj := field.DetectObject(); obj != nil {
 			parts[26] = protocache.BytesToWords(protocache.DetectMap(obj, nil, DETECT_Small))
 		} else {
 			parts[26] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_matrix, _FIELD_TOTAL_Main) {
-		if m.fMatrix != nil {
-			part, err := m.fMatrix.Encode()
+	} else if len(m.fObjects) != 0 {
+		keys := make([][]uint32, 0, len(m.fObjects))
+		vals := make([][]uint32, 0, len(m.fObjects))
+		for k, v := range m.fObjects {
+			keyPart := protocache.EncodeInt32(k)
+			valPart, err := v.Encode()
 			if err != nil {
 				return nil, err
 			}
-			if len(part) > 1 {
-				parts[27] = part
+			if len(valPart) <= 1 {
+				valPart = nil
 			}
+			keys = append(keys, keyPart)
+			vals = append(vals, valPart)
 		}
-	} else {
+		part, err := protocache.EncodeMapParts(keys, vals, false)
+		if err != nil {
+			return nil, err
+		}
+		parts[26] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_matrix, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_matrix)
 		if obj := field.DetectObject(); obj != nil {
 			parts[27] = protocache.BytesToWords(DETECT_Vec2D(obj))
 		} else {
 			parts[27] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_vector, _FIELD_TOTAL_Main) {
-		if len(m.fVector) != 0 {
-			part, err := protocache.EncodeObjectArray(len(m.fVector), func(i int) ([]uint32, error) {
-				return m.fVector[i].Encode()
-			})
-			if err != nil {
-				return nil, err
-			}
-			parts[28] = part
+	} else if m.fMatrix != nil {
+		part, err := m.fMatrix.Encode()
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		if len(part) > 1 {
+			parts[27] = part
+		}
+	}
+	if !m.meta.IsVisited(_FIELD_Main_vector, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_vector)
 		if obj := field.DetectObject(); obj != nil {
 			parts[28] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_ArrMap))
 		} else {
 			parts[28] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_arrays, _FIELD_TOTAL_Main) {
-		if m.fArrays != nil {
-			part, err := m.fArrays.Encode()
-			if err != nil {
-				return nil, err
-			}
-			if len(part) > 1 {
-				parts[29] = part
-			}
+	} else if len(m.fVector) != 0 {
+		part, err := protocache.EncodeObjectArray(len(m.fVector), func(i int) ([]uint32, error) {
+			return m.fVector[i].Encode()
+		})
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		parts[28] = part
+	}
+	if !m.meta.IsVisited(_FIELD_Main_arrays, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_arrays)
 		if obj := field.DetectObject(); obj != nil {
 			parts[29] = protocache.BytesToWords(DETECT_ArrMap(obj))
 		} else {
 			parts[29] = field.RawWords()
 		}
-	}
-	if m.meta.IsVisited(_FIELD_Main_modev, _FIELD_TOTAL_Main) {
-		if len(m.fModev) != 0 {
-			part, err := protocache.EncodeEnumArray(m.fModev)
-			if err != nil {
-				return nil, err
-			}
-			parts[31] = part
+	} else if m.fArrays != nil {
+		part, err := m.fArrays.Encode()
+		if err != nil {
+			return nil, err
 		}
-	} else {
+		if len(part) > 1 {
+			parts[29] = part
+		}
+	}
+	if !m.meta.IsVisited(_FIELD_Main_modev, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_modev)
 		if obj := field.DetectObject(); obj != nil {
 			parts[31] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
 			parts[31] = field.RawWords()
 		}
+	} else if len(m.fModev) != 0 {
+		part, err := protocache.EncodeEnumArray(m.fModev)
+		if err != nil {
+			return nil, err
+		}
+		parts[31] = part
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -1350,30 +1320,26 @@ func (m *CyclicAEX) Encode() ([]uint32, error) {
 		return []uint32{0}, nil
 	}
 	parts := make([][]uint32, 2)
-	if m.meta.IsVisited(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA) {
-		if m.fValue != 0 {
-			parts[0] = protocache.EncodeInt32(m.fValue)
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA) {
 		field := m.meta.RawField(_FIELD_CyclicA_value)
 		parts[0] = field.RawWords()
+	} else if m.fValue != 0 {
+		parts[0] = protocache.EncodeInt32(m.fValue)
 	}
-	if m.meta.IsVisited(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA) {
-		if m.fCyclic != nil {
-			part, err := m.fCyclic.Encode()
-			if err != nil {
-				return nil, err
-			}
-			if len(part) > 1 {
-				parts[1] = part
-			}
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA) {
 		field := m.meta.RawField(_FIELD_CyclicA_cyclic)
 		if obj := field.DetectObject(); obj != nil {
 			parts[1] = protocache.BytesToWords(DETECT_CyclicB(obj))
 		} else {
 			parts[1] = field.RawWords()
+		}
+	} else if m.fCyclic != nil {
+		part, err := m.fCyclic.Encode()
+		if err != nil {
+			return nil, err
+		}
+		if len(part) > 1 {
+			parts[1] = part
 		}
 	}
 	return protocache.EncodeMessageParts(parts)
@@ -1445,30 +1411,26 @@ func (m *CyclicBEX) Encode() ([]uint32, error) {
 		return []uint32{0}, nil
 	}
 	parts := make([][]uint32, 2)
-	if m.meta.IsVisited(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB) {
-		if m.fValue != 0 {
-			parts[0] = protocache.EncodeInt32(m.fValue)
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB) {
 		field := m.meta.RawField(_FIELD_CyclicB_value)
 		parts[0] = field.RawWords()
+	} else if m.fValue != 0 {
+		parts[0] = protocache.EncodeInt32(m.fValue)
 	}
-	if m.meta.IsVisited(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB) {
-		if m.fCyclic != nil {
-			part, err := m.fCyclic.Encode()
-			if err != nil {
-				return nil, err
-			}
-			if len(part) > 1 {
-				parts[1] = part
-			}
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB) {
 		field := m.meta.RawField(_FIELD_CyclicB_cyclic)
 		if obj := field.DetectObject(); obj != nil {
 			parts[1] = protocache.BytesToWords(DETECT_CyclicA(obj))
 		} else {
 			parts[1] = field.RawWords()
+		}
+	} else if m.fCyclic != nil {
+		part, err := m.fCyclic.Encode()
+		if err != nil {
+			return nil, err
+		}
+		if len(part) > 1 {
+			parts[1] = part
 		}
 	}
 	return protocache.EncodeMessageParts(parts)
@@ -1536,13 +1498,11 @@ func (m *Deprecated_ValidEX) Encode() ([]uint32, error) {
 		return []uint32{0}, nil
 	}
 	parts := make([][]uint32, 1)
-	if m.meta.IsVisited(_FIELD_Deprecated_Valid_val, _FIELD_TOTAL_Deprecated_Valid) {
-		if m.fVal != 0 {
-			parts[0] = protocache.EncodeInt32(m.fVal)
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_Deprecated_Valid_val, _FIELD_TOTAL_Deprecated_Valid) {
 		field := m.meta.RawField(_FIELD_Deprecated_Valid_val)
 		parts[0] = field.RawWords()
+	} else if m.fVal != 0 {
+		parts[0] = protocache.EncodeInt32(m.fVal)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -1596,13 +1556,11 @@ func (m *DeprecatedEX) Encode() ([]uint32, error) {
 		return []uint32{0}, nil
 	}
 	parts := make([][]uint32, 1)
-	if m.meta.IsVisited(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated) {
-		if m.fJunk != 0 {
-			parts[0] = protocache.EncodeInt32(m.fJunk)
-		}
-	} else {
+	if !m.meta.IsVisited(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated) {
 		field := m.meta.RawField(_FIELD_Deprecated_junk)
 		parts[0] = field.RawWords()
+	} else if m.fJunk != 0 {
+		parts[0] = protocache.EncodeInt32(m.fJunk)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
