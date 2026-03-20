@@ -178,9 +178,7 @@ func (x Vec2DEX) Encode() ([]uint32, error) {
 	if len(x) == 0 {
 		return []uint32{1}, nil
 	}
-	return protocache.EncodeObjectArray(len(x), func(i int) ([]uint32, error) {
-		return x[i].Encode()
-	})
+	return protocache.EncodeObjectArray(len(x), func(i int) ([]uint32, error) { return x[i].Encode() })
 }
 
 func (x Vec2DEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(x.Encode()) }
@@ -558,9 +556,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[18] = field.RawWords()
 		}
 	} else if len(m.fObjectv) != 0 {
-		part, err := protocache.EncodeObjectArray(len(m.fObjectv), func(i int) ([]uint32, error) {
-			return m.fObjectv[i].Encode()
-		})
+		part, err := protocache.EncodeObjectArray(len(m.fObjectv), func(i int) ([]uint32, error) { return m.fObjectv[i].Encode() })
 		if err != nil {
 			return nil, err
 		}
@@ -676,9 +672,7 @@ func (m *MainEX) Encode() ([]uint32, error) {
 			parts[28] = field.RawWords()
 		}
 	} else if len(m.fVector) != 0 {
-		part, err := protocache.EncodeObjectArray(len(m.fVector), func(i int) ([]uint32, error) {
-			return m.fVector[i].Encode()
-		})
+		part, err := protocache.EncodeObjectArray(len(m.fVector), func(i int) ([]uint32, error) { return m.fVector[i].Encode() })
 		if err != nil {
 			return nil, err
 		}

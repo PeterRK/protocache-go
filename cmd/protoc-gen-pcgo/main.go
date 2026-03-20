@@ -1552,13 +1552,12 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 				for _, line := range exReplayAssignLines(field, imports, "field", fmt.Sprintf("parts[%d]", id)) {
 					g.P("		", line)
 				}
-				if hasValue != "" {
-					g.P("	} else if !(", hasValue, ") {")
-					g.P("	} else {")
-				} else {
-					g.P("	} else {")
-				}
 				if field.Desc.IsMap() {
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
+					}
 					valField := exMapValueField(field)
 					g.P("		keys := make([][]uint32, 0, len(m.", name, "))")
 					g.P("		vals := make([][]uint32, 0, len(m.", name, "))")
@@ -1571,11 +1570,6 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					g.P("			if err != nil {")
 					g.P("				return nil, err")
 					g.P("			}")
-					if valField.Desc.Kind() == protoreflect.MessageKind {
-						g.P("			if len(valPart) <= 1 {")
-						g.P("				valPart = nil")
-						g.P("			}")
-					}
 					g.P("			keys = append(keys, keyPart)")
 					g.P("			vals = append(vals, valPart)")
 					g.P("		}")
@@ -1584,13 +1578,25 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					g.P("			return nil, err")
 					g.P("		}")
 					g.P("		parts[", id, "] = part")
+					g.P("	}")
 				} else if field.Desc.IsList() {
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
+					}
 					g.P("		if part, err := ", exEncodeExpr(field, "m."+name), "; err == nil {")
 					g.P("			parts[", id, "] = part")
 					g.P("		} else {")
 					g.P("			return nil, err")
 					g.P("		}")
+					g.P("	}")
 				} else if field.Desc.Kind() == protoreflect.MessageKind {
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
+					}
 					g.P("		if part, err := ", exEncodeExpr(field, "m."+name), "; err == nil {")
 					g.P("			if len(part) > 1 {")
 					g.P("				parts[", id, "] = part")
@@ -1598,14 +1604,20 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					g.P("		} else {")
 					g.P("			return nil, err")
 					g.P("		}")
+					g.P("	}")
 				} else {
+					if hasValue != "" {
+						g.P("	} else if ", hasValue, " {")
+					} else {
+						g.P("	} else {")
+					}
 					g.P("		if part, err := ", exEncodeExpr(field, "m."+name), "; err == nil {")
 					g.P("			parts[", id, "] = part")
 					g.P("		} else {")
 					g.P("			return nil, err")
 					g.P("		}")
+					g.P("	}")
 				}
-				g.P("	}")
 			} else {
 				g.P("	field := m.meta.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
 				if exNeedsObjectDetect(field) {
