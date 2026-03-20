@@ -1,8 +1,9 @@
 package pc
 
 import (
-	"github.com/peterrk/protocache-go"
 	"unsafe"
+
+	"github.com/peterrk/protocache-go"
 )
 
 func DETECT_Small(data []byte) []byte {
@@ -14,30 +15,12 @@ func DETECT_Small(data []byte) []byte {
 	if inlined == nil {
 		return nil
 	}
-	compactEnd := len(inlined)
 	if field := msg.GetField(_FIELD_Small_str); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectBytes(obj)
-				}
-				obj := field.GetObject()
-				return protocache.DetectBytes(obj)
-			}()
-			if len(part) == 0 {
-				return nil
-			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return protocache.DetectShrink(data, obj, protocache.DetectBytes(obj))
 		}
 	}
-	if compactEnd > len(data) {
-		return nil
-	}
-	return data[:compactEnd]
+	return inlined
 }
 
 type SmallEX struct {
@@ -69,74 +52,45 @@ func (m *SmallEX) serializeWords() ([]uint32, error) {
 		return []uint32{0}, nil
 	}
 	parts := make([][]uint32, 5)
-	if m.__.IsVisited(_FIELD_Small_i32, _FIELD_TOTAL_Small) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fI32), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Small_i32, _FIELD_TOTAL_Small) {
+		field := m.__.RawField(_FIELD_Small_i32)
+		parts[0] = field.RawWords()
+	} else if m.fI32 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fI32), nil }(); err == nil {
 		parts[0] = part
 	} else {
-		field := m.__.RawField(_FIELD_Small_i32)
-		if raw := func() []byte {
-			if !field.IsValid() {
-				return nil
-			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[0] = protocache.BytesToWords(raw)
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Small_flag, _FIELD_TOTAL_Small) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeBool(m.fFlag), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Small_flag, _FIELD_TOTAL_Small) {
+		field := m.__.RawField(_FIELD_Small_flag)
+		parts[1] = field.RawWords()
+	} else if !m.fFlag {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeBool(m.fFlag), nil }(); err == nil {
 		parts[1] = part
 	} else {
-		field := m.__.RawField(_FIELD_Small_flag)
-		if raw := func() []byte {
-			if !field.IsValid() {
-				return nil
-			}
-			return protocache.WordsToBytes(protocache.EncodeBool(field.GetBool()))
-		}(); len(raw) != 0 {
-			parts[1] = protocache.BytesToWords(raw)
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Small_str, _FIELD_TOTAL_Small) {
-		part, err := protocache.EncodeString(m.fStr)
-		if err != nil {
-			return nil, err
+	if !m.__.IsVisited(_FIELD_Small_str, _FIELD_TOTAL_Small) {
+		field := m.__.RawField(_FIELD_Small_str)
+		if obj := field.DetectObject(); obj != nil {
+			parts[3] = protocache.BytesToWords(protocache.DetectBytes(obj))
+		} else {
+			parts[3] = field.RawWords()
 		}
+	} else if len(m.fStr) == 0 {
+	} else if part, err := protocache.EncodeString(m.fStr); err == nil {
 		parts[3] = part
 	} else {
-		field := m.__.RawField(_FIELD_Small_str)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectBytes(obj)
-			}
-			obj := field.GetObject()
-			return protocache.DetectBytes(obj)
-		}(); len(raw) != 0 {
-			parts[3] = protocache.BytesToWords(raw)
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Small_junk, _FIELD_TOTAL_Small) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fJunk), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Small_junk, _FIELD_TOTAL_Small) {
+		field := m.__.RawField(_FIELD_Small_junk)
+		parts[4] = field.RawWords()
+	} else if m.fJunk == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fJunk), nil }(); err == nil {
 		parts[4] = part
 	} else {
-		field := m.__.RawField(_FIELD_Small_junk)
-		if raw := func() []byte {
-			if !field.IsValid() {
-				return nil
-			}
-			return protocache.WordsToBytes(protocache.EncodeInt64(field.GetInt64()))
-		}(); len(raw) != 0 {
-			parts[4] = protocache.BytesToWords(raw)
-		}
+		return nil, err
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -363,325 +317,155 @@ func DETECT_Main(data []byte) []byte {
 	compactEnd := len(inlined)
 	if field := msg.GetField(_FIELD_Main_modev); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, nil)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, nil)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, nil)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_arrays); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return DETECT_ArrMap(obj)
-				}
-				obj := field.GetObject()
-				return DETECT_ArrMap(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := DETECT_ArrMap(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_vector); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, DETECT_ArrMap)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, DETECT_ArrMap)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, DETECT_ArrMap)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_matrix); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return DETECT_Vec2D(obj)
-				}
-				obj := field.GetObject()
-				return DETECT_Vec2D(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := DETECT_Vec2D(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_objects); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectMap(obj, nil, DETECT_Small)
-				}
-				obj := field.GetObject()
-				return protocache.DetectMap(obj, nil, DETECT_Small)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectMap(obj, nil, DETECT_Small)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_index); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectMap(obj, protocache.DetectBytes, nil)
-				}
-				obj := field.GetObject()
-				return protocache.DetectMap(obj, protocache.DetectBytes, nil)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectMap(obj, protocache.DetectBytes, nil)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_objectv); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, DETECT_Small)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, DETECT_Small)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, DETECT_Small)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_flags); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectBytes(obj)
-				}
-				obj := field.GetObject()
-				return protocache.DetectBytes(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectBytes(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_f64v); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, nil)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, nil)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, nil)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_f32v); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, nil)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, nil)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, nil)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_datav); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, protocache.DetectBytes)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, protocache.DetectBytes)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, protocache.DetectBytes)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_strv); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, protocache.DetectBytes)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, protocache.DetectBytes)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, protocache.DetectBytes)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_u64v); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, nil)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, nil)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, nil)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_i32v); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectArray(obj, nil)
-				}
-				obj := field.GetObject()
-				return protocache.DetectArray(obj, nil)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectArray(obj, nil)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_object); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return DETECT_Small(obj)
-				}
-				obj := field.GetObject()
-				return DETECT_Small(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := DETECT_Small(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_data); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectBytes(obj)
-				}
-				obj := field.GetObject()
-				return protocache.DetectBytes(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectBytes(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if field := msg.GetField(_FIELD_Main_str); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return protocache.DetectBytes(obj)
-				}
-				obj := field.GetObject()
-				return protocache.DetectBytes(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := protocache.DetectBytes(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if compactEnd > len(data) {
@@ -746,177 +530,103 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		return []uint32{0}, nil
 	}
 	parts := make([][]uint32, 32)
-	if m.__.IsVisited(_FIELD_Main_i32, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fI32), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_i32, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_i32)
+		parts[0] = field.RawWords()
+	} else if m.fI32 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fI32), nil }(); err == nil {
 		parts[0] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_i32)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[0] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_u32, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeUint32(m.fU32), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_u32, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_u32)
+		parts[1] = field.RawWords()
+	} else if m.fU32 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeUint32(m.fU32), nil }(); err == nil {
 		parts[1] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_u32)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[1] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_i64, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fI64), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_i64, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_i64)
+		parts[2] = field.RawWords()
+	} else if m.fI64 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fI64), nil }(); err == nil {
 		parts[2] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_i64)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[2] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_u64, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeUint64(m.fU64), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_u64, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_u64)
+		parts[3] = field.RawWords()
+	} else if m.fU64 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeUint64(m.fU64), nil }(); err == nil {
 		parts[3] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_u64)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[3] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_flag, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeBool(m.fFlag), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_flag, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_flag)
+		parts[4] = field.RawWords()
+	} else if !m.fFlag {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeBool(m.fFlag), nil }(); err == nil {
 		parts[4] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_flag)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[4] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_mode, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(int32(m.fMode)), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_mode, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_mode)
+		parts[5] = field.RawWords()
+	} else if m.fMode == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt32(int32(m.fMode)), nil }(); err == nil {
 		parts[5] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_mode)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[5] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_str, _FIELD_TOTAL_Main) {
-		part, err := protocache.EncodeString(m.fStr)
-		if err != nil {
-			return nil, err
+	if !m.__.IsVisited(_FIELD_Main_str, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_str)
+		if obj := field.DetectObject(); obj != nil {
+			parts[6] = protocache.BytesToWords(protocache.DetectBytes(obj))
+		} else {
+			parts[6] = field.RawWords()
 		}
+	} else if len(m.fStr) == 0 {
+	} else if part, err := protocache.EncodeString(m.fStr); err == nil {
 		parts[6] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_str)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectBytes(obj)
-			}
-			obj := field.GetObject()
-			return protocache.DetectBytes(obj)
-		}(); len(raw) != 0 {
-			parts[6] = protocache.BytesToWords(raw)
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_data, _FIELD_TOTAL_Main) {
-		part, err := protocache.EncodeBytes(m.fData)
-		if err != nil {
-			return nil, err
+	if !m.__.IsVisited(_FIELD_Main_data, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_data)
+		if obj := field.DetectObject(); obj != nil {
+			parts[7] = protocache.BytesToWords(protocache.DetectBytes(obj))
+		} else {
+			parts[7] = field.RawWords()
 		}
+	} else if len(m.fData) == 0 {
+	} else if part, err := protocache.EncodeBytes(m.fData); err == nil {
 		parts[7] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_data)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectBytes(obj)
-			}
-			obj := field.GetObject()
-			return protocache.DetectBytes(obj)
-		}(); len(raw) != 0 {
-			parts[7] = protocache.BytesToWords(raw)
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_f32, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeFloat32(m.fF32), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_f32, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_f32)
+		parts[8] = field.RawWords()
+	} else if m.fF32 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeFloat32(m.fF32), nil }(); err == nil {
 		parts[8] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_f32)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[8] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_f64, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeFloat64(m.fF64), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_f64, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_f64)
+		parts[9] = field.RawWords()
+	} else if m.fF64 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeFloat64(m.fF64), nil }(); err == nil {
 		parts[9] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_f64)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[9] = part
-		}
+		return nil, err
 	}
 	if m.__.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
 		if m.fObject != nil {
@@ -930,14 +640,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_object)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return DETECT_Small(obj)
-			}
-			obj := field.GetObject()
-			return DETECT_Small(obj)
-		}(); len(raw) != 0 {
-			parts[10] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[10] = protocache.BytesToWords(DETECT_Small(obj))
+		} else {
+			parts[10] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_i32v, _FIELD_TOTAL_Main) {
@@ -950,14 +656,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_i32v)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, nil)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, nil)
-		}(); len(raw) != 0 {
-			parts[11] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[11] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+		} else {
+			parts[11] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_u64v, _FIELD_TOTAL_Main) {
@@ -970,14 +672,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_u64v)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, nil)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, nil)
-		}(); len(raw) != 0 {
-			parts[12] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[12] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+		} else {
+			parts[12] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_strv, _FIELD_TOTAL_Main) {
@@ -990,14 +688,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_strv)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, protocache.DetectBytes)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, protocache.DetectBytes)
-		}(); len(raw) != 0 {
-			parts[13] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[13] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
+		} else {
+			parts[13] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_datav, _FIELD_TOTAL_Main) {
@@ -1010,14 +704,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_datav)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, protocache.DetectBytes)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, protocache.DetectBytes)
-		}(); len(raw) != 0 {
-			parts[14] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[14] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
+		} else {
+			parts[14] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_f32v, _FIELD_TOTAL_Main) {
@@ -1030,14 +720,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_f32v)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, nil)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, nil)
-		}(); len(raw) != 0 {
-			parts[15] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[15] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+		} else {
+			parts[15] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_f64v, _FIELD_TOTAL_Main) {
@@ -1050,14 +736,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_f64v)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, nil)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, nil)
-		}(); len(raw) != 0 {
-			parts[16] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[16] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+		} else {
+			parts[16] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_flags, _FIELD_TOTAL_Main) {
@@ -1070,14 +752,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_flags)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectBytes(obj)
-			}
-			obj := field.GetObject()
-			return protocache.DetectBytes(obj)
-		}(); len(raw) != 0 {
-			parts[17] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[17] = protocache.BytesToWords(protocache.DetectBytes(obj))
+		} else {
+			parts[17] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_objectv, _FIELD_TOTAL_Main) {
@@ -1095,117 +773,65 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_objectv)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, DETECT_Small)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, DETECT_Small)
-		}(); len(raw) != 0 {
-			parts[18] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[18] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_Small))
+		} else {
+			parts[18] = field.RawWords()
 		}
 	}
-	if m.__.IsVisited(_FIELD_Main_t_u32, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeUint32(m.fTU32), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_t_u32, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_t_u32)
+		parts[19] = field.RawWords()
+	} else if m.fTU32 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeUint32(m.fTU32), nil }(); err == nil {
 		parts[19] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_t_u32)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[19] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_t_i32, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fTI32), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_t_i32, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_t_i32)
+		parts[20] = field.RawWords()
+	} else if m.fTI32 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fTI32), nil }(); err == nil {
 		parts[20] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_t_i32)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[20] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_t_s32, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fTS32), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_t_s32, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_t_s32)
+		parts[21] = field.RawWords()
+	} else if m.fTS32 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fTS32), nil }(); err == nil {
 		parts[21] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_t_s32)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[21] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_t_u64, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeUint64(m.fTU64), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_t_u64, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_t_u64)
+		parts[22] = field.RawWords()
+	} else if m.fTU64 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeUint64(m.fTU64), nil }(); err == nil {
 		parts[22] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_t_u64)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[22] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_t_i64, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fTI64), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_t_i64, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_t_i64)
+		parts[23] = field.RawWords()
+	} else if m.fTI64 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fTI64), nil }(); err == nil {
 		parts[23] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_t_i64)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[23] = part
-		}
+		return nil, err
 	}
-	if m.__.IsVisited(_FIELD_Main_t_s64, _FIELD_TOTAL_Main) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fTS64), nil }()
-		if err != nil {
-			return nil, err
-		}
+	if !m.__.IsVisited(_FIELD_Main_t_s64, _FIELD_TOTAL_Main) {
+		field := m.__.RawField(_FIELD_Main_t_s64)
+		parts[24] = field.RawWords()
+	} else if m.fTS64 == 0 {
+	} else if part, err := func() ([]uint32, error) { return protocache.EncodeInt64(m.fTS64), nil }(); err == nil {
 		parts[24] = part
 	} else {
-		field := m.__.RawField(_FIELD_Main_t_s64)
-		if part := func() []uint32 {
-			if !field.IsValid() {
-				return nil
-			}
-			return field.RawWords()
-		}(); len(part) != 0 {
-			parts[24] = part
-		}
+		return nil, err
 	}
 	if m.__.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {
 		if len(m.fIndex) != 0 {
@@ -1231,14 +857,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_index)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectMap(obj, protocache.DetectBytes, nil)
-			}
-			obj := field.GetObject()
-			return protocache.DetectMap(obj, protocache.DetectBytes, nil)
-		}(); len(raw) != 0 {
-			parts[25] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[25] = protocache.BytesToWords(protocache.DetectMap(obj, protocache.DetectBytes, nil))
+		} else {
+			parts[25] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_objects, _FIELD_TOTAL_Main) {
@@ -1268,14 +890,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_objects)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectMap(obj, nil, DETECT_Small)
-			}
-			obj := field.GetObject()
-			return protocache.DetectMap(obj, nil, DETECT_Small)
-		}(); len(raw) != 0 {
-			parts[26] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[26] = protocache.BytesToWords(protocache.DetectMap(obj, nil, DETECT_Small))
+		} else {
+			parts[26] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_matrix, _FIELD_TOTAL_Main) {
@@ -1296,14 +914,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_matrix)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return DETECT_Vec2D(obj)
-			}
-			obj := field.GetObject()
-			return DETECT_Vec2D(obj)
-		}(); len(raw) != 0 {
-			parts[27] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[27] = protocache.BytesToWords(DETECT_Vec2D(obj))
+		} else {
+			parts[27] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_vector, _FIELD_TOTAL_Main) {
@@ -1324,14 +938,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_vector)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, DETECT_ArrMap)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, DETECT_ArrMap)
-		}(); len(raw) != 0 {
-			parts[28] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[28] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_ArrMap))
+		} else {
+			parts[28] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_arrays, _FIELD_TOTAL_Main) {
@@ -1352,14 +962,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_arrays)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return DETECT_ArrMap(obj)
-			}
-			obj := field.GetObject()
-			return DETECT_ArrMap(obj)
-		}(); len(raw) != 0 {
-			parts[29] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[29] = protocache.BytesToWords(DETECT_ArrMap(obj))
+		} else {
+			parts[29] = field.RawWords()
 		}
 	}
 	if m.__.IsVisited(_FIELD_Main_modev, _FIELD_TOTAL_Main) {
@@ -1372,14 +978,10 @@ func (m *MainEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_Main_modev)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return protocache.DetectArray(obj, nil)
-			}
-			obj := field.GetObject()
-			return protocache.DetectArray(obj, nil)
-		}(); len(raw) != 0 {
-			parts[31] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[31] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+		} else {
+			parts[31] = field.RawWords()
 		}
 	}
 	return protocache.EncodeMessageParts(parts)
@@ -1961,21 +1563,11 @@ func DETECT_CyclicA(data []byte) []byte {
 	compactEnd := len(inlined)
 	if field := msg.GetField(_FIELD_CyclicA_cyclic); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return DETECT_CyclicB(obj)
-				}
-				obj := field.GetObject()
-				return DETECT_CyclicB(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := DETECT_CyclicB(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if compactEnd > len(data) {
@@ -2012,21 +1604,16 @@ func (m *CyclicAEX) serializeWords() ([]uint32, error) {
 	}
 	parts := make([][]uint32, 2)
 	if m.__.IsVisited(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fValue), nil }()
-		if err != nil {
-			return nil, err
+		if m.fValue != 0 {
+			part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fValue), nil }()
+			if err != nil {
+				return nil, err
+			}
+			parts[0] = part
 		}
-		parts[0] = part
 	} else {
 		field := m.__.RawField(_FIELD_CyclicA_value)
-		if raw := func() []byte {
-			if !field.IsValid() {
-				return nil
-			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[0] = protocache.BytesToWords(raw)
-		}
+		parts[0] = field.RawWords()
 	}
 	if m.__.IsVisited(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA) {
 		if m.fCyclic != nil {
@@ -2040,14 +1627,10 @@ func (m *CyclicAEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_CyclicA_cyclic)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return DETECT_CyclicB(obj)
-			}
-			obj := field.GetObject()
-			return DETECT_CyclicB(obj)
-		}(); len(raw) != 0 {
-			parts[1] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[1] = protocache.BytesToWords(DETECT_CyclicB(obj))
+		} else {
+			parts[1] = field.RawWords()
 		}
 	}
 	return protocache.EncodeMessageParts(parts)
@@ -2095,21 +1678,11 @@ func DETECT_CyclicB(data []byte) []byte {
 	compactEnd := len(inlined)
 	if field := msg.GetField(_FIELD_CyclicB_cyclic); field.IsValid() {
 		if obj := field.DetectObject(); obj != nil {
-			part := func() []byte {
-				if obj := field.DetectObject(); obj != nil {
-					return DETECT_CyclicA(obj)
-				}
-				obj := field.GetObject()
-				return DETECT_CyclicA(obj)
-			}()
-			if len(part) == 0 {
-				return nil
+			part := DETECT_CyclicA(obj)
+			if tail := protocache.DetectTail(data, obj, part); tail != nil {
+				return tail
 			}
-			tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
-			if tail > len(data) {
-				return nil
-			}
-			return data[:tail]
+			return nil
 		}
 	}
 	if compactEnd > len(data) {
@@ -2146,21 +1719,16 @@ func (m *CyclicBEX) serializeWords() ([]uint32, error) {
 	}
 	parts := make([][]uint32, 2)
 	if m.__.IsVisited(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fValue), nil }()
-		if err != nil {
-			return nil, err
+		if m.fValue != 0 {
+			part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fValue), nil }()
+			if err != nil {
+				return nil, err
+			}
+			parts[0] = part
 		}
-		parts[0] = part
 	} else {
 		field := m.__.RawField(_FIELD_CyclicB_value)
-		if raw := func() []byte {
-			if !field.IsValid() {
-				return nil
-			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[0] = protocache.BytesToWords(raw)
-		}
+		parts[0] = field.RawWords()
 	}
 	if m.__.IsVisited(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB) {
 		if m.fCyclic != nil {
@@ -2174,14 +1742,10 @@ func (m *CyclicBEX) serializeWords() ([]uint32, error) {
 		}
 	} else {
 		field := m.__.RawField(_FIELD_CyclicB_cyclic)
-		if raw := func() []byte {
-			if obj := field.DetectObject(); obj != nil {
-				return DETECT_CyclicA(obj)
-			}
-			obj := field.GetObject()
-			return DETECT_CyclicA(obj)
-		}(); len(raw) != 0 {
-			parts[1] = protocache.BytesToWords(raw)
+		if obj := field.DetectObject(); obj != nil {
+			parts[1] = protocache.BytesToWords(DETECT_CyclicA(obj))
+		} else {
+			parts[1] = field.RawWords()
 		}
 	}
 	return protocache.EncodeMessageParts(parts)
@@ -2260,21 +1824,16 @@ func (m *Deprecated_ValidEX) serializeWords() ([]uint32, error) {
 	}
 	parts := make([][]uint32, 1)
 	if m.__.IsVisited(_FIELD_Deprecated_Valid_val, _FIELD_TOTAL_Deprecated_Valid) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fVal), nil }()
-		if err != nil {
-			return nil, err
+		if m.fVal != 0 {
+			part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fVal), nil }()
+			if err != nil {
+				return nil, err
+			}
+			parts[0] = part
 		}
-		parts[0] = part
 	} else {
 		field := m.__.RawField(_FIELD_Deprecated_Valid_val)
-		if raw := func() []byte {
-			if !field.IsValid() {
-				return nil
-			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[0] = protocache.BytesToWords(raw)
-		}
+		parts[0] = field.RawWords()
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -2337,21 +1896,16 @@ func (m *DeprecatedEX) serializeWords() ([]uint32, error) {
 	}
 	parts := make([][]uint32, 1)
 	if m.__.IsVisited(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated) {
-		part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fJunk), nil }()
-		if err != nil {
-			return nil, err
+		if m.fJunk != 0 {
+			part, err := func() ([]uint32, error) { return protocache.EncodeInt32(m.fJunk), nil }()
+			if err != nil {
+				return nil, err
+			}
+			parts[0] = part
 		}
-		parts[0] = part
 	} else {
 		field := m.__.RawField(_FIELD_Deprecated_junk)
-		if raw := func() []byte {
-			if !field.IsValid() {
-				return nil
-			}
-			return protocache.WordsToBytes(protocache.EncodeInt32(field.GetInt32()))
-		}(); len(raw) != 0 {
-			parts[0] = protocache.BytesToWords(raw)
-		}
+		parts[0] = field.RawWords()
 	}
 	return protocache.EncodeMessageParts(parts)
 }

@@ -738,6 +738,18 @@ func (f Field) DetectObject() []byte {
 	return obj
 }
 
+// nil意味着错误
+func DetectShrink(data, obj, part []byte) []byte {
+	if len(part) == 0 {
+		return nil
+	}
+	tail := int(uintptr(unsafe.Pointer(unsafe.SliceData(obj)))-uintptr(unsafe.Pointer(unsafe.SliceData(data)))) + len(part)
+	if tail > len(data) {
+		return nil
+	}
+	return data[:tail]
+}
+
 func DetectArray(data []byte, detect func([]byte) []byte) []byte {
 	a := AsArray(data)
 	if !a.IsValid() {
