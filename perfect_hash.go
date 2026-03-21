@@ -71,25 +71,21 @@ func calcBitmapSize(section uint32) uint32 {
 	return ((section*3 + 31) & ^uint32(31)) / 4
 }
 
-type PerfectHash struct {
+type perfectHashTable struct {
 	data    []byte
 	size    uint32
 	section uint32
 }
 
-func (h *PerfectHash) IsValid() bool {
+func (h *perfectHashTable) isValid() bool {
 	return len(h.data) != 0
 }
 
-func (h *PerfectHash) Data() []byte {
+func (h *perfectHashTable) encodedBytes() []byte {
 	return h.data
 }
 
-func (h *PerfectHash) Size() uint32 {
-	return h.size
-}
-
-func (h *PerfectHash) Init(data []byte) bool {
+func (h *perfectHashTable) initFromEncoded(data []byte) bool {
 	if len(data) < 4 {
 		return false
 	}
@@ -119,7 +115,7 @@ func (h *PerfectHash) Init(data []byte) bool {
 	return true
 }
 
-func (h *PerfectHash) Locate(key []byte) uint32 {
+func (h *perfectHashTable) lookup(key []byte) uint32 {
 	if h.size < 2 {
 		return 0
 	}
@@ -164,13 +160,13 @@ type graph[T unsigned] struct {
 	nodes []T
 }
 
-type KeySource interface {
+type hashKeySource interface {
 	Reset()
 	Total() int
 	Next() []byte
 }
 
-func (g *graph[T]) init(seed uint32, src KeySource) {
+func (g *graph[T]) init(seed uint32, src hashKeySource) {
 	setAll(castToBytes(g.nodes))
 
 	section := uint32(len(g.nodes) / 3)
@@ -261,7 +257,7 @@ func (g *graph[T]) mapping(free []T, book []byte, bitmap []byte) {
 	}
 }
 
-func build[T unsigned](src KeySource) []byte {
+func build[T unsigned](src hashKeySource) []byte {
 	total := src.Total()
 	if total <= 1 || total > 0xfffffff {
 		return nil
@@ -322,12 +318,12 @@ func build[T unsigned](src KeySource) []byte {
 	return nil
 }
 
-func Build(src KeySource) PerfectHash {
+func buildPerfectHashTable(src hashKeySource) perfectHashTable {
 	total := src.Total()
 	if total > 0xfffffff {
-		return PerfectHash{}
+		return perfectHashTable{}
 	}
-	out := PerfectHash{size: uint32(total)}
+	out := perfectHashTable{size: uint32(total)}
 	if total > 0xffff {
 		out.data = build[uint32](src)
 	} else if total > 0xff {
@@ -340,7 +336,7 @@ func Build(src KeySource) PerfectHash {
 		return out
 	}
 	if out.data == nil {
-		return PerfectHash{}
+		return perfectHashTable{}
 	}
 	out.section = calcSectionSize(out.size)
 	return out

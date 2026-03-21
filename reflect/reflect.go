@@ -1,6 +1,8 @@
 package reflect
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"strings"
 
@@ -10,19 +12,19 @@ import (
 type FieldType uint8
 
 const (
-	TYPE_NONE    FieldType = 0
-	TYPE_MESSAGE FieldType = 1
-	TYPE_BYTES   FieldType = 2
-	TYPE_STRING  FieldType = 3
-	TYPE_FLOAT64 FieldType = 4
-	TYPE_FLOAT32 FieldType = 5
-	TYPE_UINT64  FieldType = 6
-	TYPE_UINT32  FieldType = 7
-	TYPE_INT64   FieldType = 8
-	TYPE_INT32   FieldType = 9
-	TYPE_BOOL    FieldType = 10
-	TYPE_ENUM    FieldType = 11
-	TYPE_UNKNOWN FieldType = 255
+	TypeNone    FieldType = 0
+	TypeMessage FieldType = 1
+	TypeBytes   FieldType = 2
+	TypeString  FieldType = 3
+	TypeFloat64 FieldType = 4
+	TypeFloat32 FieldType = 5
+	TypeUint64  FieldType = 6
+	TypeUint32  FieldType = 7
+	TypeInt64   FieldType = 8
+	TypeInt32   FieldType = 9
+	TypeBool    FieldType = 10
+	TypeEnum    FieldType = 11
+	TypeUnknown FieldType = 255
 )
 
 type Field struct {
@@ -59,11 +61,11 @@ func (f *Field) ValueDescriptor() *Descriptor {
 }
 
 func (f *Field) IsValid() bool {
-	return f.value != TYPE_NONE
+	return f.value != TypeNone
 }
 
 func (f *Field) IsMap() bool {
-	return f.key != TYPE_NONE
+	return f.key != TypeNone
 }
 
 type Descriptor struct {
@@ -95,7 +97,15 @@ type DescriptorPool struct {
 	pool map[string]*Descriptor
 }
 
-func (p *DescriptorPool) Register(proto *pb.FileDescriptorProto) bool {
+var (
+	ErrDuplicateDescriptor = errors.New("duplicate descriptor")
+	ErrInvalidField        = errors.New("invalid field")
+	ErrInvalidFieldNumber  = errors.New("invalid field number")
+	ErrInvalidMapKey       = errors.New("invalid map key type")
+	ErrUnknownType         = errors.New("unknown type")
+)
+
+func (p *DescriptorPool) Register(proto *pb.FileDescriptorProto) error {
 	if p.enum == nil {
 		p.enum = make(map[string]struct{})
 	}
@@ -106,86 +116,90 @@ func (p *DescriptorPool) Register(proto *pb.FileDescriptorProto) bool {
 		if one.GetOptions() != nil && one.GetOptions().GetDeprecated() {
 			continue
 		}
-		p.enum[clacFullname(proto.GetPackage(), one.GetName())] = struct{}{}
+		p.enum[calcFullname(proto.GetPackage(), one.GetName())] = struct{}{}
 	}
 	for _, one := range proto.GetMessageType() {
 		if one.GetOptions() != nil && one.GetOptions().GetDeprecated() {
 			continue
 		}
-		if !p.register(proto.GetPackage(), one) {
-			return false
+		if err := p.register(proto.GetPackage(), one); err != nil {
+			return err
 		}
 	}
 	for name, descriptor := range p.pool {
-		if descriptor.alias.id != 0 && p.fixUnknownType(name, descriptor) {
-			descriptor.alias.id = 0
+		if descriptor.alias.id == 0 {
+			continue
 		}
+		if !p.fixUnknownType(name, descriptor) {
+			return fmt.Errorf("%w: %s", ErrUnknownType, name)
+		}
+		descriptor.alias.id = 0
 	}
-	return true
+	return nil
 }
 
 func convertType(field *pb.FieldDescriptorProto) FieldType {
 	if field.Type == nil {
-		return TYPE_UNKNOWN
+		return TypeUnknown
 	}
 	switch *field.Type {
 	case pb.FieldDescriptorProto_TYPE_MESSAGE:
-		return TYPE_MESSAGE
+		return TypeMessage
 	case pb.FieldDescriptorProto_TYPE_BYTES:
-		return TYPE_BYTES
+		return TypeBytes
 	case pb.FieldDescriptorProto_TYPE_STRING:
-		return TYPE_STRING
+		return TypeString
 	case pb.FieldDescriptorProto_TYPE_DOUBLE:
-		return TYPE_FLOAT64
+		return TypeFloat64
 	case pb.FieldDescriptorProto_TYPE_FLOAT:
-		return TYPE_FLOAT32
+		return TypeFloat32
 	case pb.FieldDescriptorProto_TYPE_FIXED64,
 		pb.FieldDescriptorProto_TYPE_UINT64:
-		return TYPE_UINT64
+		return TypeUint64
 	case pb.FieldDescriptorProto_TYPE_FIXED32,
 		pb.FieldDescriptorProto_TYPE_UINT32:
-		return TYPE_UINT32
+		return TypeUint32
 	case pb.FieldDescriptorProto_TYPE_SFIXED64,
 		pb.FieldDescriptorProto_TYPE_SINT64,
 		pb.FieldDescriptorProto_TYPE_INT64:
-		return TYPE_INT64
+		return TypeInt64
 	case pb.FieldDescriptorProto_TYPE_SFIXED32,
 		pb.FieldDescriptorProto_TYPE_SINT32,
 		pb.FieldDescriptorProto_TYPE_INT32:
-		return TYPE_INT32
+		return TypeInt32
 	case pb.FieldDescriptorProto_TYPE_BOOL:
-		return TYPE_BOOL
+		return TypeBool
 	case pb.FieldDescriptorProto_TYPE_ENUM:
-		return TYPE_ENUM
+		return TypeEnum
 	default:
-		return TYPE_NONE
+		return TypeNone
 	}
 }
 
 func canBeKey(t FieldType) bool {
 	switch t {
-	case TYPE_STRING,
-		TYPE_UINT64,
-		TYPE_UINT32,
-		TYPE_INT64,
-		TYPE_INT32:
+	case TypeString,
+		TypeUint64,
+		TypeUint32,
+		TypeInt64,
+		TypeInt32:
 		return true
 	default:
 		return false
 	}
 }
 
-func (p *DescriptorPool) register(ns string, proto *pb.DescriptorProto) bool {
-	fullname := clacFullname(ns, proto.GetName())
+func (p *DescriptorPool) register(ns string, proto *pb.DescriptorProto) error {
+	fullname := calcFullname(ns, proto.GetName())
 	if p.pool[fullname] != nil {
-		return false
+		return fmt.Errorf("%w: %s", ErrDuplicateDescriptor, fullname)
 	}
 
 	for _, one := range proto.GetEnumType() {
 		if one.GetOptions() != nil && one.GetOptions().GetDeprecated() {
 			continue
 		}
-		p.enum[clacFullname(fullname, one.GetName())] = struct{}{}
+		p.enum[calcFullname(fullname, one.GetName())] = struct{}{}
 	}
 
 	mapEntries := make(map[string]*pb.DescriptorProto)
@@ -199,41 +213,41 @@ func (p *DescriptorPool) register(ns string, proto *pb.DescriptorProto) bool {
 				continue
 			}
 		}
-		if !p.register(fullname, one) {
-			return false
+		if err := p.register(fullname, one); err != nil {
+			return err
 		}
 	}
 
-	convertField := func(src *pb.FieldDescriptorProto, out *Field) bool {
+	convertField := func(src *pb.FieldDescriptorProto, out *Field) error {
 		if src == nil {
-			return false
+			return ErrInvalidField
 		}
 		out.repeated = src.GetLabel() == pb.FieldDescriptorProto_LABEL_REPEATED
 		out.value = convertType(src)
-		if out.value == TYPE_NONE {
-			return false
+		if out.value == TypeNone {
+			return fmt.Errorf("%w: %s", ErrInvalidField, src.GetName())
 		}
-		if out.value == TYPE_MESSAGE || out.value == TYPE_UNKNOWN {
+		if out.value == TypeMessage || out.value == TypeUnknown {
 			entry := mapEntries[src.GetTypeName()]
 			if entry != nil {
 				out.key = convertType(entry.Field[0])
 				out.value = convertType(entry.Field[1])
-				if !canBeKey(out.key) || out.value == TYPE_NONE {
-					return false
+				if !canBeKey(out.key) || out.value == TypeNone {
+					return fmt.Errorf("%w: %s", ErrInvalidMapKey, src.GetName())
 				}
 				out.valueType = entry.Field[1].GetTypeName()
 			} else {
 				out.valueType = src.GetTypeName()
 			}
 		}
-		return true
+		return nil
 	}
 
 	descriptor := &Descriptor{}
 	descriptor.alias.id = math.MaxUint16
 	if len(proto.Field) == 1 && proto.Field[0].GetName() == "_" {
-		if !convertField(proto.Field[0], &descriptor.alias) {
-			return false
+		if err := convertField(proto.Field[0], &descriptor.alias); err != nil {
+			return fmt.Errorf("%w in %s._: %v", ErrInvalidField, fullname, err)
 		}
 	} else {
 		descriptor.fields = make(map[string]*Field, len(proto.Field))
@@ -242,19 +256,19 @@ func (p *DescriptorPool) register(ns string, proto *pb.DescriptorProto) bool {
 				continue
 			}
 			if one.GetNumber() <= 0 {
-				return false
+				return fmt.Errorf("%w: %s.%s", ErrInvalidFieldNumber, fullname, one.GetName())
 			}
 			field := &Field{
 				id: uint16(one.GetNumber() - 1),
 			}
-			if !convertField(one, field) {
-				return false
+			if err := convertField(one, field); err != nil {
+				return fmt.Errorf("%w in %s.%s: %v", ErrInvalidField, fullname, one.GetName(), err)
 			}
 			descriptor.fields[one.GetName()] = field
 		}
 	}
 	p.pool[fullname] = descriptor
-	return true
+	return nil
 }
 
 func (p *DescriptorPool) Find(fullname string) *Descriptor {
@@ -279,12 +293,12 @@ func (p *DescriptorPool) Find(fullname string) *Descriptor {
 func (p *DescriptorPool) fixUnknownType(fullname string, descriptor *Descriptor) bool {
 	bindType := func(name string, field *Field) bool {
 		if _, found := p.enum[name]; found {
-			field.value = TYPE_ENUM
+			field.value = TypeEnum
 			field.valueType = ""
 			return true
 		}
 		if descriptor := p.pool[name]; descriptor != nil {
-			field.value = TYPE_MESSAGE
+			field.value = TypeMessage
 			field.valueType = name
 			field.valueDescriptor = descriptor
 			return true
@@ -293,7 +307,7 @@ func (p *DescriptorPool) fixUnknownType(fullname string, descriptor *Descriptor)
 	}
 
 	checkType := func(field *Field) bool {
-		if field.value != TYPE_UNKNOWN {
+		if field.value != TypeUnknown {
 			return true
 		}
 		if len(field.valueType) == 0 {
@@ -333,7 +347,7 @@ func (p *DescriptorPool) fixUnknownType(fullname string, descriptor *Descriptor)
 	return true
 }
 
-func clacFullname(ns, name string) string {
+func calcFullname(ns, name string) string {
 	if len(ns) == 0 {
 		return name
 	}

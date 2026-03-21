@@ -53,7 +53,7 @@ func testHash(t *testing.T) {
 
 	data := []byte("0123456789abcdefghijklmnopqrstuvwxyz")
 	for i := 0; i < len(expected); i++ {
-		w := Hash128(0, data[:i])
+		w := hash128(0, data[:i])
 		assert(t, w[0] == expected[i][0] && w[1] == expected[i][1])
 	}
 }

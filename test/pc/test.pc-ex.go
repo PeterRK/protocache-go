@@ -32,7 +32,7 @@ func TO_SmallEX(data []byte) *SmallEX {
 	return out
 }
 
-func (m *SmallEX) HasBase() bool { return m.meta.HasBase() }
+func (m *SmallEX) HasSource() bool { return m.meta.HasSource() }
 
 func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 	if m == nil {
@@ -43,7 +43,7 @@ func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Small_i32)
 		parts[0] = field.RawWords()
 	} else if m.fI32 != 0 {
-		parts[0], _ = protocache.EncodeInt32(m.fI32)
+		parts[0], _ = protocache.EncodeScalar[int32](m.fI32)
 	}
 	if !m.meta.IsVisited(_FIELD_Small_flag, _FIELD_TOTAL_Small) {
 		field := m.meta.RawField(_FIELD_Small_flag)
@@ -69,12 +69,12 @@ func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Small_junk)
 		parts[4] = field.RawWords()
 	} else if m.fJunk != 0 {
-		parts[4], _ = protocache.EncodeInt64(m.fJunk)
+		parts[4], _ = protocache.EncodeScalar[int64](m.fJunk)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *SmallEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_Small(m)) }
+func (m *SmallEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_Small(m)) }
 
 func (m *SmallEX) GetI32() int32 {
 	if m.meta.IsVisited(_FIELD_Small_i32, _FIELD_TOTAL_Small) {
@@ -153,11 +153,11 @@ func ENCODE_Vec2D_Vec1D(x Vec2D_Vec1DEX) ([]uint32, error) {
 	if len(x) == 0 {
 		return []uint32{1}, nil
 	}
-	return protocache.EncodeFloat32Array([]float32(x))
+	return protocache.EncodeScalarVector[float32]([]float32(x))
 }
 
 func (x Vec2D_Vec1DEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_Vec2D_Vec1D(x))
+	return protocache.SerializeWords(ENCODE_Vec2D_Vec1D(x))
 }
 
 func DETECT_Vec2D(data []byte) []byte {
@@ -184,7 +184,7 @@ func ENCODE_Vec2D(x Vec2DEX) ([]uint32, error) {
 	return protocache.EncodeObjectArray(x, ENCODE_Vec2D_Vec1D)
 }
 
-func (x Vec2DEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_Vec2D(x)) }
+func (x Vec2DEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_Vec2D(x)) }
 
 func DETECT_ArrMap_Array(data []byte) []byte {
 	return protocache.DetectArray(data, nil)
@@ -203,11 +203,11 @@ func ENCODE_ArrMap_Array(x ArrMap_ArrayEX) ([]uint32, error) {
 	if len(x) == 0 {
 		return []uint32{1}, nil
 	}
-	return protocache.EncodeFloat32Array([]float32(x))
+	return protocache.EncodeScalarVector[float32]([]float32(x))
 }
 
 func (x ArrMap_ArrayEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_ArrMap_Array(x))
+	return protocache.SerializeWords(ENCODE_ArrMap_Array(x))
 }
 
 func DETECT_ArrMap(data []byte) []byte {
@@ -233,7 +233,7 @@ func ENCODE_ArrMap(x ArrMapEX) ([]uint32, error) {
 	return protocache.EncodeStringMap(x, ENCODE_ArrMap_Array)
 }
 
-func (x ArrMapEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_ArrMap(x)) }
+func (x ArrMapEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_ArrMap(x)) }
 
 func DETECT_Main(data []byte) []byte {
 	msg := protocache.AsMessage(data)
@@ -356,7 +356,7 @@ func TO_MainEX(data []byte) *MainEX {
 	return out
 }
 
-func (m *MainEX) HasBase() bool { return m.meta.HasBase() }
+func (m *MainEX) HasSource() bool { return m.meta.HasSource() }
 
 func ENCODE_Main(m *MainEX) ([]uint32, error) {
 	if m == nil {
@@ -367,25 +367,25 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Main_i32)
 		parts[0] = field.RawWords()
 	} else if m.fI32 != 0 {
-		parts[0], _ = protocache.EncodeInt32(m.fI32)
+		parts[0], _ = protocache.EncodeScalar[int32](m.fI32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_u32, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_u32)
 		parts[1] = field.RawWords()
 	} else if m.fU32 != 0 {
-		parts[1], _ = protocache.EncodeUint32(m.fU32)
+		parts[1], _ = protocache.EncodeScalar[uint32](m.fU32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_i64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_i64)
 		parts[2] = field.RawWords()
 	} else if m.fI64 != 0 {
-		parts[2], _ = protocache.EncodeInt64(m.fI64)
+		parts[2], _ = protocache.EncodeScalar[int64](m.fI64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_u64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_u64)
 		parts[3] = field.RawWords()
 	} else if m.fU64 != 0 {
-		parts[3], _ = protocache.EncodeUint64(m.fU64)
+		parts[3], _ = protocache.EncodeScalar[uint64](m.fU64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_flag, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_flag)
@@ -397,7 +397,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Main_mode)
 		parts[5] = field.RawWords()
 	} else if m.fMode != 0 {
-		parts[5], _ = protocache.EncodeInt32(int32(m.fMode))
+		parts[5], _ = protocache.EncodeScalar[int32](int32(m.fMode))
 	}
 	if !m.meta.IsVisited(_FIELD_Main_str, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_str)
@@ -431,13 +431,13 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Main_f32)
 		parts[8] = field.RawWords()
 	} else if m.fF32 != 0 {
-		parts[8], _ = protocache.EncodeFloat32(m.fF32)
+		parts[8], _ = protocache.EncodeScalar[float32](m.fF32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_f64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_f64)
 		parts[9] = field.RawWords()
 	} else if m.fF64 != 0 {
-		parts[9], _ = protocache.EncodeFloat64(m.fF64)
+		parts[9], _ = protocache.EncodeScalar[float64](m.fF64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_object)
@@ -463,7 +463,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			parts[11] = field.RawWords()
 		}
 	} else if len(m.fI32V) != 0 {
-		part, err := protocache.EncodeInt32Array(m.fI32V)
+		part, err := protocache.EncodeScalarVector[int32](m.fI32V)
 		if err != nil {
 			return nil, err
 		}
@@ -477,7 +477,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			parts[12] = field.RawWords()
 		}
 	} else if len(m.fU64V) != 0 {
-		part, err := protocache.EncodeUint64Array(m.fU64V)
+		part, err := protocache.EncodeScalarVector[uint64](m.fU64V)
 		if err != nil {
 			return nil, err
 		}
@@ -519,7 +519,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			parts[15] = field.RawWords()
 		}
 	} else if len(m.fF32V) != 0 {
-		part, err := protocache.EncodeFloat32Array(m.fF32V)
+		part, err := protocache.EncodeScalarVector[float32](m.fF32V)
 		if err != nil {
 			return nil, err
 		}
@@ -533,7 +533,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			parts[16] = field.RawWords()
 		}
 	} else if len(m.fF64V) != 0 {
-		part, err := protocache.EncodeFloat64Array(m.fF64V)
+		part, err := protocache.EncodeScalarVector[float64](m.fF64V)
 		if err != nil {
 			return nil, err
 		}
@@ -571,37 +571,37 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Main_t_u32)
 		parts[19] = field.RawWords()
 	} else if m.fTU32 != 0 {
-		parts[19], _ = protocache.EncodeUint32(m.fTU32)
+		parts[19], _ = protocache.EncodeScalar[uint32](m.fTU32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_i32, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_i32)
 		parts[20] = field.RawWords()
 	} else if m.fTI32 != 0 {
-		parts[20], _ = protocache.EncodeInt32(m.fTI32)
+		parts[20], _ = protocache.EncodeScalar[int32](m.fTI32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_s32, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_s32)
 		parts[21] = field.RawWords()
 	} else if m.fTS32 != 0 {
-		parts[21], _ = protocache.EncodeInt32(m.fTS32)
+		parts[21], _ = protocache.EncodeScalar[int32](m.fTS32)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_u64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_u64)
 		parts[22] = field.RawWords()
 	} else if m.fTU64 != 0 {
-		parts[22], _ = protocache.EncodeUint64(m.fTU64)
+		parts[22], _ = protocache.EncodeScalar[uint64](m.fTU64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_i64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_i64)
 		parts[23] = field.RawWords()
 	} else if m.fTI64 != 0 {
-		parts[23], _ = protocache.EncodeInt64(m.fTI64)
+		parts[23], _ = protocache.EncodeScalar[int64](m.fTI64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_t_s64, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_t_s64)
 		parts[24] = field.RawWords()
 	} else if m.fTS64 != 0 {
-		parts[24], _ = protocache.EncodeInt64(m.fTS64)
+		parts[24], _ = protocache.EncodeScalar[int64](m.fTS64)
 	}
 	if !m.meta.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {
 		field := m.meta.RawField(_FIELD_Main_index)
@@ -611,9 +611,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			parts[25] = field.RawWords()
 		}
 	} else if len(m.fIndex) != 0 {
-		part, err := protocache.EncodeStringMap(m.fIndex, func(v int32) ([]uint32, error) {
-			return protocache.EncodeInt32(v)
-		})
+		part, err := protocache.EncodeStringMap(m.fIndex, protocache.EncodeScalar[int32])
 		if err != nil {
 			return nil, err
 		}
@@ -628,7 +626,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		}
 	} else if len(m.fObjects) != 0 {
 		part, err := protocache.EncodeScalarMap(m.fObjects,
-			func(k int32) ([]uint32, error) { return protocache.EncodeInt32(k) },
+			protocache.EncodeScalar[int32],
 			ENCODE_Small)
 		if err != nil {
 			return nil, err
@@ -698,7 +696,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *MainEX) Serialize() ([]byte, error) { return protocache.SerializeEncoded(ENCODE_Main(m)) }
+func (m *MainEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_Main(m)) }
 
 func (m *MainEX) GetI32() int32 {
 	if m.meta.IsVisited(_FIELD_Main_i32, _FIELD_TOTAL_Main) {
@@ -1292,7 +1290,7 @@ func TO_CyclicAEX(data []byte) *CyclicAEX {
 	return out
 }
 
-func (m *CyclicAEX) HasBase() bool { return m.meta.HasBase() }
+func (m *CyclicAEX) HasSource() bool { return m.meta.HasSource() }
 
 func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 	if m == nil {
@@ -1303,7 +1301,7 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_CyclicA_value)
 		parts[0] = field.RawWords()
 	} else if m.fValue != 0 {
-		parts[0], _ = protocache.EncodeInt32(m.fValue)
+		parts[0], _ = protocache.EncodeScalar[int32](m.fValue)
 	}
 	if !m.meta.IsVisited(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA) {
 		field := m.meta.RawField(_FIELD_CyclicA_cyclic)
@@ -1325,7 +1323,7 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 }
 
 func (m *CyclicAEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_CyclicA(m))
+	return protocache.SerializeWords(ENCODE_CyclicA(m))
 }
 
 func (m *CyclicAEX) GetValue() int32 {
@@ -1386,7 +1384,7 @@ func TO_CyclicBEX(data []byte) *CyclicBEX {
 	return out
 }
 
-func (m *CyclicBEX) HasBase() bool { return m.meta.HasBase() }
+func (m *CyclicBEX) HasSource() bool { return m.meta.HasSource() }
 
 func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 	if m == nil {
@@ -1397,7 +1395,7 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_CyclicB_value)
 		parts[0] = field.RawWords()
 	} else if m.fValue != 0 {
-		parts[0], _ = protocache.EncodeInt32(m.fValue)
+		parts[0], _ = protocache.EncodeScalar[int32](m.fValue)
 	}
 	if !m.meta.IsVisited(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB) {
 		field := m.meta.RawField(_FIELD_CyclicB_cyclic)
@@ -1419,7 +1417,7 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 }
 
 func (m *CyclicBEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_CyclicB(m))
+	return protocache.SerializeWords(ENCODE_CyclicB(m))
 }
 
 func (m *CyclicBEX) GetValue() int32 {
@@ -1475,7 +1473,7 @@ func TO_Deprecated_ValidEX(data []byte) *Deprecated_ValidEX {
 	return out
 }
 
-func (m *Deprecated_ValidEX) HasBase() bool { return m.meta.HasBase() }
+func (m *Deprecated_ValidEX) HasSource() bool { return m.meta.HasSource() }
 
 func ENCODE_Deprecated_Valid(m *Deprecated_ValidEX) ([]uint32, error) {
 	if m == nil {
@@ -1486,13 +1484,13 @@ func ENCODE_Deprecated_Valid(m *Deprecated_ValidEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Deprecated_Valid_val)
 		parts[0] = field.RawWords()
 	} else if m.fVal != 0 {
-		parts[0], _ = protocache.EncodeInt32(m.fVal)
+		parts[0], _ = protocache.EncodeScalar[int32](m.fVal)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
 
 func (m *Deprecated_ValidEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_Deprecated_Valid(m))
+	return protocache.SerializeWords(ENCODE_Deprecated_Valid(m))
 }
 
 func (m *Deprecated_ValidEX) GetVal() int32 {
@@ -1533,7 +1531,7 @@ func TO_DeprecatedEX(data []byte) *DeprecatedEX {
 	return out
 }
 
-func (m *DeprecatedEX) HasBase() bool { return m.meta.HasBase() }
+func (m *DeprecatedEX) HasSource() bool { return m.meta.HasSource() }
 
 func ENCODE_Deprecated(m *DeprecatedEX) ([]uint32, error) {
 	if m == nil {
@@ -1544,13 +1542,13 @@ func ENCODE_Deprecated(m *DeprecatedEX) ([]uint32, error) {
 		field := m.meta.RawField(_FIELD_Deprecated_junk)
 		parts[0] = field.RawWords()
 	} else if m.fJunk != 0 {
-		parts[0], _ = protocache.EncodeInt32(m.fJunk)
+		parts[0], _ = protocache.EncodeScalar[int32](m.fJunk)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
 
 func (m *DeprecatedEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_Deprecated(m))
+	return protocache.SerializeWords(ENCODE_Deprecated(m))
 }
 
 func (m *DeprecatedEX) GetJunk() int32 {
@@ -1589,7 +1587,7 @@ func ENCODE_ModeDict_Value(x ModeDict_ValueEX) ([]uint32, error) {
 }
 
 func (x ModeDict_ValueEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_ModeDict_Value(x))
+	return protocache.SerializeWords(ENCODE_ModeDict_Value(x))
 }
 
 func DETECT_ModeDict(data []byte) []byte {
@@ -1613,10 +1611,10 @@ func TO_ModeDictEX(data []byte) ModeDictEX {
 
 func ENCODE_ModeDict(x ModeDictEX) ([]uint32, error) {
 	return protocache.EncodeScalarMap(x,
-		func(k int32) ([]uint32, error) { return protocache.EncodeInt32(k) },
+		protocache.EncodeScalar[int32],
 		ENCODE_ModeDict_Value)
 }
 
 func (x ModeDictEX) Serialize() ([]byte, error) {
-	return protocache.SerializeEncoded(ENCODE_ModeDict(x))
+	return protocache.SerializeWords(ENCODE_ModeDict(x))
 }

@@ -176,7 +176,7 @@ func TestEXModifyAliasFields(t *testing.T) {
 
 func TestEXNewObjectWithoutBaseCanSerialize(t *testing.T) {
 	root := pc.TO_MainEX(nil)
-	assert(t, !root.HasBase())
+	assert(t, !root.HasSource())
 
 	root.SetI32(321)
 	root.SetStr("fresh")

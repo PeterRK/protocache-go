@@ -9,79 +9,39 @@ import (
 )
 
 func Serialize(obj proto.Message) ([]byte, error) {
-	data, err := serializeMessage(obj.ProtoReflect())
+	data, err := encodeMessage(obj.ProtoReflect())
 	if err != nil {
 		return nil, err
 	}
 	return castToBytes(data), nil
 }
 
-func SerializeEncoded(data []uint32, err error) ([]byte, error) {
+func SerializeWords(data []uint32, err error) ([]byte, error) {
 	return WordsToBytes(data), err
 }
 
+func EncodeScalar[T scalar](v T) ([]uint32, error) {
+	return encodeScalar(v), nil
+}
+
 func EncodeBool(v bool) ([]uint32, error) {
-	return serializeBool(v), nil
-}
-
-func EncodeInt32(v int32) ([]uint32, error) {
-	return serializeScalar(v), nil
-}
-
-func EncodeUint32(v uint32) ([]uint32, error) {
-	return serializeScalar(v), nil
-}
-
-func EncodeInt64(v int64) ([]uint32, error) {
-	return serializeScalar(v), nil
-}
-
-func EncodeUint64(v uint64) ([]uint32, error) {
-	return serializeScalar(v), nil
-}
-
-func EncodeFloat32(v float32) ([]uint32, error) {
-	return serializeScalar(v), nil
-}
-
-func EncodeFloat64(v float64) ([]uint32, error) {
-	return serializeScalar(v), nil
+	return encodeBool(v), nil
 }
 
 func EncodeBytes(data []byte) ([]uint32, error) {
-	return serializeBytes(data)
+	return encodeBytes(data)
 }
 
 func EncodeString(str string) ([]uint32, error) {
-	return serializeString(str)
+	return encodeString(str)
 }
 
 func EncodeMessageParts(parts [][]uint32) ([]uint32, error) {
 	return encodeMessageParts(parts)
 }
 
-func EncodeInt32Array(vec []int32) ([]uint32, error) {
-	return serializeScalarVector(vec)
-}
-
-func EncodeUint32Array(vec []uint32) ([]uint32, error) {
-	return serializeScalarVector(vec)
-}
-
-func EncodeInt64Array(vec []int64) ([]uint32, error) {
-	return serializeScalarVector(vec)
-}
-
-func EncodeUint64Array(vec []uint64) ([]uint32, error) {
-	return serializeScalarVector(vec)
-}
-
-func EncodeFloat32Array(vec []float32) ([]uint32, error) {
-	return serializeScalarVector(vec)
-}
-
-func EncodeFloat64Array(vec []float64) ([]uint32, error) {
-	return serializeScalarVector(vec)
+func EncodeScalarVector[T scalar](vec []T) ([]uint32, error) {
+	return encodeScalarVector(vec)
 }
 
 func EncodeBoolArray(vec []bool) ([]uint32, error) {
@@ -91,29 +51,49 @@ func EncodeBoolArray(vec []bool) ([]uint32, error) {
 			tmp[i] = 1
 		}
 	}
-	return serializeBytes(tmp)
+	return encodeBytes(tmp)
 }
 
 func EncodeEnumArray[T Enum](vec []T) ([]uint32, error) {
-	return serializeScalarVector(upCast[T, int32](vec))
+	return EncodeScalarVector(upCast[T, int32](vec))
 }
 
 func EncodeStringArray(vec []string) ([]uint32, error) {
-	return serializeArray(len(vec), func(i int) ([]uint32, error) {
-		return serializeString(vec[i])
+	return encodeArray(len(vec), func(i int) ([]uint32, error) {
+		return encodeString(vec[i])
 	})
 }
 
 func EncodeBytesArray(vec [][]byte) ([]uint32, error) {
-	return serializeArray(len(vec), func(i int) ([]uint32, error) {
-		return serializeBytes(vec[i])
+	return encodeArray(len(vec), func(i int) ([]uint32, error) {
+		return encodeBytes(vec[i])
 	})
 }
 
 func EncodeObjectArray[T any](vec []T, encoder func(T) ([]uint32, error)) ([]uint32, error) {
-	return serializeArray(len(vec), func(i int) ([]uint32, error) {
+	return encodeArray(len(vec), func(i int) ([]uint32, error) {
 		return encoder(vec[i])
 	})
+}
+
+func collectMapParts[K comparable, V any](x map[K]V,
+	keyEnc func(K) ([]uint32, error),
+	valEnc func(V) ([]uint32, error)) (keys, vals [][]uint32, err error) {
+	keys = make([][]uint32, 0, len(x))
+	vals = make([][]uint32, 0, len(x))
+	for k, v := range x {
+		keyPart, err := keyEnc(k)
+		if err != nil {
+			return nil, nil, err
+		}
+		valPart, err := valEnc(v)
+		if err != nil {
+			return nil, nil, err
+		}
+		keys = append(keys, keyPart)
+		vals = append(vals, valPart)
+	}
+	return keys, vals, nil
 }
 
 func EncodeScalarMap[K scalar, V any](x map[K]V,
@@ -121,16 +101,9 @@ func EncodeScalarMap[K scalar, V any](x map[K]V,
 	if len(x) == 0 {
 		return []uint32{5 << 28}, nil
 	}
-	keys := make([][]uint32, 0, len(x))
-	vals := make([][]uint32, 0, len(x))
-	for k, v := range x {
-		keyPart, _ := keyEnc(k)
-		valPart, err := valEnc(v)
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, keyPart)
-		vals = append(vals, valPart)
+	keys, vals, err := collectMapParts(x, keyEnc, valEnc)
+	if err != nil {
+		return nil, err
 	}
 	return encodeMapParts(keys, vals, false)
 }
@@ -140,19 +113,9 @@ func EncodeStringMap[V any](x map[string]V,
 	if len(x) == 0 {
 		return []uint32{5 << 28}, nil
 	}
-	keys := make([][]uint32, 0, len(x))
-	vals := make([][]uint32, 0, len(x))
-	for k, v := range x {
-		keyPart, err := EncodeString(k)
-		if err != nil {
-			return nil, err
-		}
-		valPart, err := encoder(v)
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, keyPart)
-		vals = append(vals, valPart)
+	keys, vals, err := collectMapParts(x, EncodeString, encoder)
+	if err != nil {
+		return nil, err
 	}
 	return encodeMapParts(keys, vals, true)
 }
@@ -182,7 +145,7 @@ func calcOffset(off uint32) uint32 {
 	return (off << 2) | 3
 }
 
-func serializeMessage(message protoreflect.Message) ([]uint32, error) {
+func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 	descriptor := message.Descriptor()
 	originFields := descriptor.Fields()
 	if originFields.Len() <= 0 {
@@ -220,11 +183,11 @@ func serializeMessage(message protoreflect.Message) ([]uint32, error) {
 		}
 		var err error
 		if field.IsMap() {
-			parts[i], err = serializeMap(field, message.Get(field).Map())
+			parts[i], err = encodeMap(field, message.Get(field).Map())
 		} else if field.IsList() {
-			parts[i], err = serializeList(field, message.Get(field).List())
+			parts[i], err = encodeList(field, message.Get(field).List())
 		} else {
-			parts[i], err = serializeField(field, message.Get(field))
+			parts[i], err = encodeField(field, message.Get(field))
 			if len(parts[i]) == 1 && field.Kind() == protoreflect.MessageKind {
 				parts[i] = nil
 			}
@@ -344,12 +307,12 @@ type scalar interface {
 	int32 | int64 | uint32 | uint64 | float32 | float64
 }
 
-func serializeScalar[T scalar](v T) []uint32 {
+func encodeScalar[T scalar](v T) []uint32 {
 	out := []T{v}
 	return downCast[T, uint32](out)
 }
 
-func serializeBool(v bool) []uint32 {
+func encodeBool(v bool) []uint32 {
 	out := make([]uint32, 1)
 	if v {
 		out[0] = 1
@@ -357,7 +320,7 @@ func serializeBool(v bool) []uint32 {
 	return out
 }
 
-func serializeBytes(data []byte) ([]uint32, error) {
+func encodeBytes(data []byte) ([]uint32, error) {
 	if len(data) >= (1 << 30) {
 		return nil, errors.New("too long string")
 	}
@@ -375,40 +338,40 @@ func serializeBytes(data []byte) ([]uint32, error) {
 	return out, nil
 }
 
-func serializeString(str string) ([]uint32, error) {
-	return serializeBytes(castStrToBytes(str))
+func encodeString(str string) ([]uint32, error) {
+	return encodeBytes(castStrToBytes(str))
 }
 
-func serializeField(field protoreflect.FieldDescriptor, value protoreflect.Value) ([]uint32, error) {
+func encodeField(field protoreflect.FieldDescriptor, value protoreflect.Value) ([]uint32, error) {
 	switch field.Kind() {
 	case protoreflect.MessageKind:
-		return serializeMessage(value.Message())
+		return encodeMessage(value.Message())
 	case protoreflect.BytesKind:
-		return serializeBytes(value.Bytes())
+		return encodeBytes(value.Bytes())
 	case protoreflect.StringKind:
-		return serializeString(value.String())
+		return encodeString(value.String())
 	case protoreflect.DoubleKind:
-		return serializeScalar(value.Float()), nil
+		return encodeScalar(value.Float()), nil
 	case protoreflect.FloatKind:
-		return serializeScalar(float32(value.Float())), nil
+		return encodeScalar(float32(value.Float())), nil
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return serializeScalar(value.Uint()), nil
+		return encodeScalar(value.Uint()), nil
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return serializeScalar(value.Int()), nil
+		return encodeScalar(value.Int()), nil
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return serializeScalar(uint32(value.Uint())), nil
+		return encodeScalar(uint32(value.Uint())), nil
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return serializeScalar(int32(value.Int())), nil
+		return encodeScalar(int32(value.Int())), nil
 	case protoreflect.BoolKind:
-		return serializeBool(value.Bool()), nil
+		return encodeBool(value.Bool()), nil
 	case protoreflect.EnumKind:
-		return serializeScalar(int32(value.Enum())), nil
+		return encodeScalar(int32(value.Enum())), nil
 	default:
 		return nil, fmt.Errorf("unsupported field: %s", field.FullName())
 	}
 }
 
-func serializeScalarArray[T scalar](size int, get func(i int) T) ([]uint32, error) {
+func encodeScalarArray[T scalar](size int, get func(i int) T) ([]uint32, error) {
 	m := sizeof[T]() / 4
 	out := make([]uint32, 1+size*m)
 	if len(out) >= (1 << 30) {
@@ -422,7 +385,7 @@ func serializeScalarArray[T scalar](size int, get func(i int) T) ([]uint32, erro
 	return out, nil
 }
 
-func serializeScalarVector[T scalar](src []T) ([]uint32, error) {
+func encodeScalarVector[T scalar](src []T) ([]uint32, error) {
 	m := sizeof[T]() / 4
 	out := make([]uint32, 1+len(src)*m)
 	if len(out) >= (1 << 30) {
@@ -462,7 +425,7 @@ func bestArraySize(parts [][]uint32) (size, width int) {
 	return sizes[mode], mode + 1
 }
 
-func serializeArray(size int, get func(i int) ([]uint32, error)) ([]uint32, error) {
+func encodeArray(size int, get func(i int) ([]uint32, error)) ([]uint32, error) {
 	parts := make([][]uint32, size)
 	var err error
 	for i := 0; i < size; i++ {
@@ -500,42 +463,42 @@ func serializeArray(size int, get func(i int) ([]uint32, error)) ([]uint32, erro
 	return out, nil
 }
 
-func serializeList(field protoreflect.FieldDescriptor, list protoreflect.List) ([]uint32, error) {
+func encodeList(field protoreflect.FieldDescriptor, list protoreflect.List) ([]uint32, error) {
 	switch field.Kind() {
 	case protoreflect.MessageKind:
-		return serializeArray(list.Len(), func(i int) ([]uint32, error) {
-			return serializeMessage(list.Get(i).Message())
+		return encodeArray(list.Len(), func(i int) ([]uint32, error) {
+			return encodeMessage(list.Get(i).Message())
 		})
 	case protoreflect.BytesKind:
-		return serializeArray(list.Len(), func(i int) ([]uint32, error) {
-			return serializeBytes(list.Get(i).Bytes())
+		return encodeArray(list.Len(), func(i int) ([]uint32, error) {
+			return encodeBytes(list.Get(i).Bytes())
 		})
 	case protoreflect.StringKind:
-		return serializeArray(list.Len(), func(i int) ([]uint32, error) {
-			return serializeString(list.Get(i).String())
+		return encodeArray(list.Len(), func(i int) ([]uint32, error) {
+			return encodeString(list.Get(i).String())
 		})
 	case protoreflect.DoubleKind:
-		return serializeScalarArray(list.Len(), func(i int) float64 {
+		return encodeScalarArray(list.Len(), func(i int) float64 {
 			return list.Get(i).Float()
 		})
 	case protoreflect.FloatKind:
-		return serializeScalarArray(list.Len(), func(i int) float32 {
+		return encodeScalarArray(list.Len(), func(i int) float32 {
 			return float32(list.Get(i).Float())
 		})
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return serializeScalarArray(list.Len(), func(i int) uint64 {
+		return encodeScalarArray(list.Len(), func(i int) uint64 {
 			return list.Get(i).Uint()
 		})
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return serializeScalarArray(list.Len(), func(i int) int64 {
+		return encodeScalarArray(list.Len(), func(i int) int64 {
 			return list.Get(i).Int()
 		})
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return serializeScalarArray(list.Len(), func(i int) uint32 {
+		return encodeScalarArray(list.Len(), func(i int) uint32 {
 			return uint32(list.Get(i).Uint())
 		})
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return serializeScalarArray(list.Len(), func(i int) int32 {
+		return encodeScalarArray(list.Len(), func(i int) int32 {
 			return int32(list.Get(i).Int())
 		})
 	case protoreflect.BoolKind:
@@ -545,9 +508,9 @@ func serializeList(field protoreflect.FieldDescriptor, list protoreflect.List) (
 				tmp[i] = 1
 			}
 		}
-		return serializeBytes(tmp)
+		return encodeBytes(tmp)
 	case protoreflect.EnumKind:
-		return serializeScalarArray(list.Len(), func(i int) int32 {
+		return encodeScalarArray(list.Len(), func(i int) int32 {
 			return int32(list.Get(i).Enum())
 		})
 	default:
@@ -585,7 +548,7 @@ func (r *stringReader) Next() []byte {
 	return extractBytes(key)
 }
 
-func serializeMap(field protoreflect.FieldDescriptor, pack protoreflect.Map) ([]uint32, error) {
+func encodeMap(field protoreflect.FieldDescriptor, pack protoreflect.Map) ([]uint32, error) {
 	kField := field.MapKey()
 	vField := field.MapValue()
 	size := pack.Len()
@@ -595,12 +558,12 @@ func serializeMap(field protoreflect.FieldDescriptor, pack protoreflect.Map) ([]
 	var err error
 	pack.Range(func(key protoreflect.MapKey, val protoreflect.Value) bool {
 		var tmp []uint32
-		tmp, err = serializeField(kField, key.Value())
+		tmp, err = encodeField(kField, key.Value())
 		if err != nil {
 			return false
 		}
 		keys = append(keys, tmp)
-		tmp, err = serializeField(vField, val)
+		tmp, err = encodeField(vField, val)
 		if err != nil {
 			return false
 		}
@@ -620,10 +583,10 @@ func encodeMapParts(keys [][]uint32, vals [][]uint32, stringKey bool) ([]uint32,
 		return nil, errors.New("map key/value size mismatch")
 	}
 
-	var index PerfectHash
-	build := func(src KeySource) {
-		index = Build(src)
-		if !index.IsValid() {
+	var index perfectHashTable
+	build := func(src hashKeySource) {
+		index = buildPerfectHashTable(src)
+		if !index.isValid() {
 			return
 		}
 		tKeys, tVals := keys, vals
@@ -631,7 +594,7 @@ func encodeMapParts(keys [][]uint32, vals [][]uint32, stringKey bool) ([]uint32,
 		vals = make([][]uint32, size)
 		src.Reset()
 		for i := 0; i < size; i++ {
-			pos := index.Locate(src.Next())
+			pos := index.lookup(src.Next())
 			keys[pos] = tKeys[i]
 			vals[pos] = tVals[i]
 		}
@@ -642,11 +605,11 @@ func encodeMapParts(keys [][]uint32, vals [][]uint32, stringKey bool) ([]uint32,
 	} else {
 		build(&scalarReader{arrayReader: arrayReader{keys: keys}})
 	}
-	if !index.IsValid() {
+	if !index.isValid() {
 		return nil, errors.New("fail to build map")
 	}
 
-	n0 := int(calcWordSize(uint32(len(index.Data()))))
+	n0 := int(calcWordSize(uint32(len(index.encodedBytes()))))
 	n1, m1 := bestArraySize(keys)
 	n2, m2 := bestArraySize(vals)
 
@@ -656,7 +619,7 @@ func encodeMapParts(keys [][]uint32, vals [][]uint32, stringKey bool) ([]uint32,
 	}
 
 	out := make([]uint32, n0+size*(m1+m2), n)
-	copy(castToBytes(out), index.Data())
+	copy(castToBytes(out), index.encodedBytes())
 	out[0] |= uint32((m1 << 30) | (m2 << 28))
 
 	off := n0

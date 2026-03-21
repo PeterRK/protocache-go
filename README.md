@@ -57,7 +57,7 @@ proto, err := compiler.ParseProto(raw) //CGO
 assert(t, err == nil)
 
 var pool reflect.DescriptorPool
-assert(t, pool.Register(proto))
+assert(t, pool.Register(proto) == nil)
 
 root := pool.Find("test.Main")
 assert(t, root != nil)

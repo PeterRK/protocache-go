@@ -5,20 +5,20 @@ import (
 	"testing"
 )
 
-type reader struct {
+type testHashKeySource struct {
 	keys [][]byte
 	curr int
 }
 
-func (r *reader) Reset() {
+func (r *testHashKeySource) Reset() {
 	r.curr = 0
 }
 
-func (r *reader) Total() int {
+func (r *testHashKeySource) Total() int {
 	return len(r.keys)
 }
 
-func (r *reader) Next() []byte {
+func (r *testHashKeySource) Next() []byte {
 	key := r.keys[r.curr]
 	r.curr++
 	return key
@@ -29,12 +29,12 @@ func testPerfectHash(t *testing.T, size int) {
 	for i := 0; i < size; i++ {
 		keys[i] = castStrToBytes(strconv.Itoa(i))
 	}
-	table := Build(&reader{keys: keys})
-	assert(t, table.IsValid())
+	table := buildPerfectHashTable(&testHashKeySource{keys: keys})
+	assert(t, table.isValid())
 
 	mark := make([]bool, size)
 	for i := 0; i < size; i++ {
-		pos := table.Locate(keys[i])
+		pos := table.lookup(keys[i])
 		assert(t, pos < uint32(size))
 		assert(t, !mark[pos])
 		mark[pos] = true

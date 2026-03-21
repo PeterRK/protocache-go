@@ -387,7 +387,7 @@ func (a *Array) Float64() []float64 {
 }
 
 type Map struct {
-	core     PerfectHash
+	core     perfectHashTable
 	body     uint32
 	keyWidth uint16
 	valWidth uint16
@@ -395,7 +395,7 @@ type Map struct {
 
 func AsMap(data []byte) Map {
 	m := Map{}
-	if !m.core.Init(data) {
+	if !m.core.initFromEncoded(data) {
 		return Map{}
 	}
 	// Map bodies are written on a 32-bit word boundary, so the payload starts
@@ -411,7 +411,7 @@ func AsMap(data []byte) Map {
 }
 
 func (m *Map) IsValid() bool {
-	return m.core.IsValid()
+	return m.core.isValid()
 }
 
 func (m *Map) Size() uint32 {
@@ -435,7 +435,7 @@ func (m *Map) Value(i uint32) Field {
 }
 
 func (m *Map) FindByString(key string) Field {
-	idx := m.core.Locate(castStrToBytes(key))
+	idx := m.core.lookup(castStrToBytes(key))
 	field := m.Key(idx)
 	if field.GetString() != key {
 		return Field{}
@@ -446,7 +446,7 @@ func (m *Map) FindByString(key string) Field {
 func (m *Map) FindByUint32(key uint32) Field {
 	var raw [4]byte
 	putUint32(raw[:], key)
-	idx := m.core.Locate(raw[:])
+	idx := m.core.lookup(raw[:])
 	field := m.Key(idx)
 	if field.GetUint32() != key {
 		return Field{}
@@ -461,7 +461,7 @@ func (m *Map) FindByInt32(key int32) Field {
 func (m *Map) FindByUint64(key uint64) Field {
 	var raw [8]byte
 	putUint64(raw[:], key)
-	idx := m.core.Locate(raw[:])
+	idx := m.core.lookup(raw[:])
 	field := m.Key(idx)
 	if field.GetUint64() != key {
 		return Field{}
@@ -523,154 +523,70 @@ func (a *EnumArray[T]) Raw() []T {
 	return a.core
 }
 
-type Int32Array struct {
-	core []int32
+type scalarArrayValue interface {
+	int32 | uint32 | int64 | uint64 | float32 | float64
 }
+
+type scalarArray[T scalarArrayValue] struct {
+	core []T
+}
+
+func (a *scalarArray[T]) IsValid() bool {
+	return a.core != nil
+}
+
+func (a *scalarArray[T]) Size() uint32 {
+	return uint32(len(a.core))
+}
+
+func (a *scalarArray[T]) Get(i uint32) T {
+	return a.core[i]
+}
+
+func (a *scalarArray[T]) Raw() []T {
+	return a.core
+}
+
+type Int32Array = scalarArray[int32]
 
 func AsInt32Array(data []byte) Int32Array {
 	arr := AsArray(data)
 	return Int32Array{core: arr.Int32()}
 }
 
-func (a *Int32Array) IsValid() bool {
-	return a.core != nil
-}
-
-func (a *Int32Array) Size() uint32 {
-	return uint32(len(a.core))
-}
-
-func (a *Int32Array) Get(i uint32) int32 {
-	return a.core[i]
-}
-
-func (a *Int32Array) Raw() []int32 {
-	return a.core
-}
-
-type Uint32Array struct {
-	core []uint32
-}
+type Uint32Array = scalarArray[uint32]
 
 func AsUint32Array(data []byte) Uint32Array {
 	arr := AsArray(data)
 	return Uint32Array{core: arr.Uint32()}
 }
 
-func (a *Uint32Array) IsValid() bool {
-	return a.core != nil
-}
-
-func (a *Uint32Array) Size() uint32 {
-	return uint32(len(a.core))
-}
-
-func (a *Uint32Array) Get(i uint32) uint32 {
-	return a.core[i]
-}
-
-func (a *Uint32Array) Raw() []uint32 {
-	return a.core
-}
-
-type Int64Array struct {
-	core []int64
-}
+type Int64Array = scalarArray[int64]
 
 func AsInt64Array(data []byte) Int64Array {
 	arr := AsArray(data)
 	return Int64Array{core: arr.Int64()}
 }
 
-func (a *Int64Array) IsValid() bool {
-	return a.core != nil
-}
-
-func (a *Int64Array) Size() uint32 {
-	return uint32(len(a.core))
-}
-
-func (a *Int64Array) Get(i uint32) int64 {
-	return a.core[i]
-}
-
-func (a *Int64Array) Raw() []int64 {
-	return a.core
-}
-
-type Uint64Array struct {
-	core []uint64
-}
+type Uint64Array = scalarArray[uint64]
 
 func AsUint64Array(data []byte) Uint64Array {
 	arr := AsArray(data)
 	return Uint64Array{core: arr.Uint64()}
 }
 
-func (a *Uint64Array) IsValid() bool {
-	return a.core != nil
-}
-
-func (a *Uint64Array) Size() uint32 {
-	return uint32(len(a.core))
-}
-
-func (a *Uint64Array) Get(i uint32) uint64 {
-	return a.core[i]
-}
-
-func (a *Uint64Array) Raw() []uint64 {
-	return a.core
-}
-
-type Float32Array struct {
-	core []float32
-}
+type Float32Array = scalarArray[float32]
 
 func AsFloat32Array(data []byte) Float32Array {
 	arr := AsArray(data)
 	return Float32Array{core: arr.Float32()}
 }
 
-func (a *Float32Array) IsValid() bool {
-	return a.core != nil
-}
-
-func (a *Float32Array) Size() uint32 {
-	return uint32(len(a.core))
-}
-
-func (a *Float32Array) Get(i uint32) float32 {
-	return a.core[i]
-}
-
-func (a *Float32Array) Raw() []float32 {
-	return a.core
-}
-
-type Float64Array struct {
-	core []float64
-}
+type Float64Array = scalarArray[float64]
 
 func AsFloat64Array(data []byte) Float64Array {
 	arr := AsArray(data)
 	return Float64Array{core: arr.Float64()}
-}
-
-func (a *Float64Array) IsValid() bool {
-	return a.core != nil
-}
-
-func (a *Float64Array) Size() uint32 {
-	return uint32(len(a.core))
-}
-
-func (a *Float64Array) Get(i uint32) float64 {
-	return a.core[i]
-}
-
-func (a *Float64Array) Raw() []float64 {
-	return a.core
 }
 
 type StringArray struct {

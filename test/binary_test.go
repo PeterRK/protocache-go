@@ -312,7 +312,7 @@ func TestBigObject(t *testing.T) {
 	assert(t, msg.IsValid())
 
 	var pool pcreflect.DescriptorPool
-	assert(t, pool.Register(file))
+	assert(t, pool.Register(file) == nil)
 	root := pool.Find("cov.Object")
 	assert(t, root != nil)
 

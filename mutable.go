@@ -10,12 +10,8 @@ func (m *MessageEX) Init(data []byte) {
 	m.visited = nil
 }
 
-func (m *MessageEX) HasBase() bool {
+func (m *MessageEX) HasSource() bool {
 	return m.base.IsValid()
-}
-
-func (m *MessageEX) HasField(id uint16) bool {
-	return m.base.HasField(id)
 }
 
 func (m *MessageEX) IsVisited(id uint16, fields uint16) bool {
