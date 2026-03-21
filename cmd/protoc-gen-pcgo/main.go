@@ -1069,13 +1069,13 @@ func exMapKeyEncodeFuncExpr(desc protoreflect.FieldDescriptor) string {
 	case protoreflect.StringKind:
 		return "protocache.EncodeString"
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return "func(k uint64) ([]uint32, error) { return protocache.EncodeScalar[uint64](k) }"
+		return "protocache.EncodeScalar[uint64]"
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return "func(k int64) ([]uint32, error) { return protocache.EncodeScalar[int64](k) }"
+		return "protocache.EncodeScalar[int64]"
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return "func(k uint32) ([]uint32, error) { return protocache.EncodeScalar[uint32](k) }"
+		return "protocache.EncodeScalar[uint32]"
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return "func(k int32) ([]uint32, error) { return protocache.EncodeScalar[int32](k) }"
+		return "protocache.EncodeScalar[int32]"
 	default:
 		panic("unsupported map key type")
 	}
@@ -1084,13 +1084,13 @@ func exMapKeyEncodeFuncExpr(desc protoreflect.FieldDescriptor) string {
 func exMapKeyEncodeFuncLines(desc protoreflect.FieldDescriptor) []string {
 	switch desc.Kind() {
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return []string{"func(k uint64) ([]uint32, error) { return protocache.EncodeScalar[uint64](k) }"}
+		return []string{"protocache.EncodeScalar[uint64]"}
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return []string{"func(k int64) ([]uint32, error) { return protocache.EncodeScalar[int64](k) }"}
+		return []string{"protocache.EncodeScalar[int64]"}
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return []string{"func(k uint32) ([]uint32, error) { return protocache.EncodeScalar[uint32](k) }"}
+		return []string{"protocache.EncodeScalar[uint32]"}
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return []string{"func(k int32) ([]uint32, error) { return protocache.EncodeScalar[int32](k) }"}
+		return []string{"protocache.EncodeScalar[int32]"}
 	default:
 		return nil
 	}
@@ -1117,19 +1117,19 @@ func exValueEncodeFuncExpr(field *protogen.Field, imports map[string]string) str
 	case protoreflect.StringKind:
 		return "protocache.EncodeString"
 	case protoreflect.DoubleKind:
-		return "func(v float64) ([]uint32, error) { return protocache.EncodeScalar[float64](v) }"
+		return "protocache.EncodeScalar[float64]"
 	case protoreflect.FloatKind:
-		return "func(v float32) ([]uint32, error) { return protocache.EncodeScalar[float32](v) }"
+		return "protocache.EncodeScalar[float32]"
 	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return "func(v uint64) ([]uint32, error) { return protocache.EncodeScalar[uint64](v) }"
+		return "protocache.EncodeScalar[uint64]"
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return "func(v int64) ([]uint32, error) { return protocache.EncodeScalar[int64](v) }"
+		return "protocache.EncodeScalar[int64]"
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return "func(v uint32) ([]uint32, error) { return protocache.EncodeScalar[uint32](v) }"
+		return "protocache.EncodeScalar[uint32]"
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return "func(v int32) ([]uint32, error) { return protocache.EncodeScalar[int32](v) }"
+		return "protocache.EncodeScalar[int32]"
 	case protoreflect.BoolKind:
-		return "func(v bool) ([]uint32, error) { return protocache.EncodeBool(v) }"
+		return "protocache.EncodeBool"
 	case protoreflect.EnumKind:
 		return "func(v " + exGoType(imports, field) + ") ([]uint32, error) { return protocache.EncodeScalar[int32](int32(v)) }"
 	default:
@@ -1139,20 +1139,6 @@ func exValueEncodeFuncExpr(field *protogen.Field, imports map[string]string) str
 
 func exValueEncodeFuncLines(field *protogen.Field, imports map[string]string) []string {
 	switch field.Desc.Kind() {
-	case protoreflect.DoubleKind:
-		return []string{"func(v float64) ([]uint32, error) {", "	return protocache.EncodeScalar[float64](v)", "}"}
-	case protoreflect.FloatKind:
-		return []string{"func(v float32) ([]uint32, error) {", "	return protocache.EncodeScalar[float32](v)", "}"}
-	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return []string{"func(v uint64) ([]uint32, error) {", "	return protocache.EncodeScalar[uint64](v)", "}"}
-	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		return []string{"func(v int64) ([]uint32, error) {", "	return protocache.EncodeScalar[int64](v)", "}"}
-	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return []string{"func(v uint32) ([]uint32, error) {", "	return protocache.EncodeScalar[uint32](v)", "}"}
-	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-		return []string{"func(v int32) ([]uint32, error) {", "	return protocache.EncodeScalar[int32](v)", "}"}
-	case protoreflect.BoolKind:
-		return []string{"func(v bool) ([]uint32, error) {", "	return protocache.EncodeBool(v)", "}"}
 	case protoreflect.EnumKind:
 		return []string{"func(v " + exGoType(imports, field) + ") ([]uint32, error) {", "	return protocache.EncodeScalar[int32](int32(v))", "}"}
 	default:
@@ -1681,7 +1667,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P("	return out")
 		g.P("}")
 		g.P()
-		g.P("func (m *", one.GoIdent.GoName, "EX) HasBase() bool { return m.meta.HasBase() }")
+		g.P("func (m *", one.GoIdent.GoName, "EX) HasSource() bool { return m.meta.HasSource() }")
 		g.P()
 		g.P("func ", exEncodeFuncName(one.Desc), "(m *", one.GoIdent.GoName, "EX) ([]uint32, error) {")
 		g.P("	if m == nil {")

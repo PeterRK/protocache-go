@@ -1322,9 +1322,7 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *CyclicAEX) Serialize() ([]byte, error) {
-	return protocache.SerializeWords(ENCODE_CyclicA(m))
-}
+func (m *CyclicAEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_CyclicA(m)) }
 
 func (m *CyclicAEX) GetValue() int32 {
 	if m.meta.IsVisited(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA) {
@@ -1416,9 +1414,7 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 	return protocache.EncodeMessageParts(parts)
 }
 
-func (m *CyclicBEX) Serialize() ([]byte, error) {
-	return protocache.SerializeWords(ENCODE_CyclicB(m))
-}
+func (m *CyclicBEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_CyclicB(m)) }
 
 func (m *CyclicBEX) GetValue() int32 {
 	if m.meta.IsVisited(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB) {
@@ -1615,6 +1611,4 @@ func ENCODE_ModeDict(x ModeDictEX) ([]uint32, error) {
 		ENCODE_ModeDict_Value)
 }
 
-func (x ModeDictEX) Serialize() ([]byte, error) {
-	return protocache.SerializeWords(ENCODE_ModeDict(x))
-}
+func (x ModeDictEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_ModeDict(x)) }
