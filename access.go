@@ -2,6 +2,7 @@ package protocache
 
 import (
 	"math"
+	"math/bits"
 	"unsafe"
 )
 
@@ -15,14 +16,25 @@ func CastEnumArray[T Enum](vec []EnumValue) []T {
 	return *(*[]T)(unsafe.Pointer(&vec))
 }
 
-func fullSizeSlice[T any](data []T) []T {
-	return unsafe.Slice(unsafe.SliceData(data), cap(data))
-}
-
 func extractBytes(data []byte) []byte {
-	off := 0
-	mark := uint32(0)
-	for sft := 0; sft < 32; sft += 7 {
+	if len(data) == 0 {
+		return nil
+	}
+	b0 := data[0]
+	if (b0 & 0x80) == 0 {
+		if b0&3 != 0 {
+			return nil
+		}
+		size := int(b0 >> 2)
+		if 1+size > len(data) {
+			return nil
+		}
+		return data[1 : 1+size]
+	}
+
+	off := 1
+	mark := uint32(b0 & 0x7f)
+	for sft := 7; sft < 32; sft += 7 {
 		if off >= len(data) {
 			return nil
 		}
@@ -129,7 +141,8 @@ func (f *Field) GetObject() []byte {
 	if off >= uint32(cap(f.data)) {
 		return nil
 	}
-	return fullSizeSlice(f.data)[off:]
+	base := unsafe.Slice(unsafe.SliceData(f.data), cap(f.data))
+	return base[off:]
 }
 
 func (f *Field) GetBytes() []byte {
@@ -196,20 +209,11 @@ type Message struct {
 }
 
 func count32(v uint32) uint32 {
-	v = (v & 0x33333333) + ((v >> 2) & 0x33333333)
-	v = v + (v >> 4)
-	v = (v & 0x0f0f0f0f) + ((v >> 8) & 0x0f0f0f0f)
-	v = v + (v >> 16)
-	return v & 0xff
+	return uint32(bits.OnesCount32(v) + bits.OnesCount32(v&0xaaaaaaaa))
 }
 
 func count64(v uint64) uint32 {
-	v = (v & 0x3333333333333333) + ((v >> 2) & 0x3333333333333333)
-	v = v + (v >> 4)
-	v = (v & 0x0f0f0f0f0f0f0f0f) + ((v >> 8) & 0x0f0f0f0f0f0f0f0f)
-	v = v + (v >> 16)
-	v = v + (v >> 32)
-	return uint32(v) & 0xff
+	return uint32(bits.OnesCount64(v) + bits.OnesCount64(v&0xaaaaaaaaaaaaaaaa))
 }
 
 func AsMessage(data []byte) Message {
