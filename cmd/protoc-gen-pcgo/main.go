@@ -1652,7 +1652,8 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P("}")
 		g.P()
 		g.P("type ", one.GoIdent.GoName, "EX struct {")
-		g.P("	meta protocache.MessageEX")
+		g.P("	source protocache.Message")
+		g.P("	visited [(_FIELD_TOTAL_", one.GoIdent.GoName, " + 7) / 8]byte")
 		for _, field := range fields {
 			if !exSupportsField(field.Desc) {
 				continue
@@ -1663,27 +1664,26 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P()
 		g.P("func TO_", one.GoIdent.GoName, "EX(data []byte) *", one.GoIdent.GoName, "EX {")
 		g.P("	out := &", one.GoIdent.GoName, "EX{}")
-		g.P("	out.meta.Init(data)")
+		g.P("	out.source = protocache.AsMessage(data)")
 		g.P("	return out")
 		g.P("}")
 		g.P()
-		g.P("func (m *", one.GoIdent.GoName, "EX) HasSource() bool { return m.meta.HasSource() }")
+		g.P("func (m *", one.GoIdent.GoName, "EX) HasSource() bool { return m.source.IsValid() }")
 		g.P()
 		g.P("func ", exEncodeFuncName(one.Desc), "(m *", one.GoIdent.GoName, "EX) ([]uint32, error) {")
 		g.P("	if m == nil {")
 		g.P("		return []uint32{0}, nil")
 		g.P("	}")
-		g.P("	parts := make([][]uint32, ", maxID, ")")
+		g.P("	parts := make([][]uint32, _FIELD_TOTAL_", one.GoIdent.GoName, ")")
 		for _, field := range fields {
-			id := field.Desc.Number() - 1
+			fieldConst := "_FIELD_" + one.GoIdent.GoName + "_" + string(field.Desc.Name())
+			targetPart := "parts[" + fieldConst + "]"
 			if exSupportsField(field.Desc) {
 				name := exFieldName(field)
-				visited := "_FIELD_" + one.GoIdent.GoName + "_" + string(field.Desc.Name())
-				total := "_FIELD_TOTAL_" + one.GoIdent.GoName
 				hasValue := exHasValueExpr(field, "m."+name)
-				g.P("	if !m.meta.IsVisited(", visited, ", ", total, ") {")
-				g.P("		field := m.meta.RawField(", visited, ")")
-				for _, line := range exReplayAssignLines(field, imports, "field", fmt.Sprintf("parts[%d]", id)) {
+				g.P("	if !protocache.CheckVisited(m.visited[:], ", fieldConst, ") {")
+				g.P("		field := m.source.GetField(", fieldConst, ")")
+				for _, line := range exReplayAssignLines(field, imports, "field", targetPart) {
 					g.P("		", line)
 				}
 				if field.Desc.IsMap() {
@@ -1698,7 +1698,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					g.P("		if err != nil {")
 					g.P("			return nil, err")
 					g.P("		}")
-					g.P("		parts[", id, "] = part")
+					g.P("		", targetPart, " = part")
 					g.P("	}")
 				} else if field.Desc.IsList() {
 					if hasValue != "" {
@@ -1710,7 +1710,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					g.P("		if err != nil {")
 					g.P("			return nil, err")
 					g.P("		}")
-					g.P("		parts[", id, "] = part")
+					g.P("		", targetPart, " = part")
 					g.P("	}")
 				} else if field.Desc.Kind() == protoreflect.MessageKind {
 					if hasValue != "" {
@@ -1723,7 +1723,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					g.P("			return nil, err")
 					g.P("		}")
 					g.P("		if len(part) > 1 {")
-					g.P("			parts[", id, "] = part")
+					g.P("			", targetPart, " = part")
 					g.P("		}")
 					g.P("	}")
 				} else {
@@ -1737,21 +1737,21 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 						g.P("		if err != nil {")
 						g.P("			return nil, err")
 						g.P("		}")
-						g.P("		parts[", id, "] = part")
+						g.P("		", targetPart, " = part")
 					} else {
-						g.P("		parts[", id, "], _ = ", exEncodeExpr(field, imports, "m."+name))
+						g.P("		", targetPart, ", _ = ", exEncodeExpr(field, imports, "m."+name))
 					}
 					g.P("	}")
 				}
 			} else {
-				g.P("	field := m.meta.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
+				g.P("	field := m.source.GetField(", fieldConst, ")")
 				if exNeedsObjectDetect(field) {
 					g.P("	if raw := ", exFieldRawDetectExpr(field, imports, "field"), "; len(raw) != 0 {")
-					g.P("		parts[", id, "] = protocache.BytesToWords(raw)")
+					g.P("		", targetPart, " = protocache.BytesToWords(raw)")
 					g.P("	}")
 				} else {
 					g.P("	if part := ", exFieldReplayExpr(field, imports, "field"), "; len(part) != 0 {")
-					g.P("		parts[", id, "] = part")
+					g.P("		", targetPart, " = part")
 					g.P("	}")
 				}
 			}
@@ -1768,14 +1768,14 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 			name := exFieldName(field)
 			g.P()
 			g.P("func (m *", one.GoIdent.GoName, "EX) Get", field.GoName, "() ", exGoType(imports, field), " {")
-			g.P("	if m.meta.IsVisited(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ") {")
+			g.P("	if protocache.CheckVisited(m.visited[:], _FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ") {")
 			g.P("		return m.", name)
 			g.P("	}")
-			g.P("	field := m.meta.RawField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
+			g.P("	field := m.source.GetField(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
 			for _, line := range exGetExpr(field, imports, name) {
 				g.P("	", line)
 			}
-			g.P("	m.meta.Visit(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ")")
+			g.P("	protocache.Visit(m.visited[:], _FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
 			g.P("	return m.", name)
 			g.P("}")
 			g.P()
@@ -1783,7 +1783,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 			for _, line := range exSetExpr(field, imports, name) {
 				g.P("	", line)
 			}
-			g.P("	m.meta.Visit(_FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ", _FIELD_TOTAL_", one.GoIdent.GoName, ")")
+			g.P("	protocache.Visit(m.visited[:], _FIELD_", one.GoIdent.GoName, "_", field.Desc.Name(), ")")
 			g.P("}")
 		}
 	}

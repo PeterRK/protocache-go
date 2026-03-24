@@ -19,57 +19,58 @@ func DETECT_Small(data []byte) []byte {
 }
 
 type SmallEX struct {
-	meta  protocache.MessageEX
-	fI32  int32
-	fFlag bool
-	fStr  string
-	fJunk int64
+	source  protocache.Message
+	visited [(_FIELD_TOTAL_Small + 7) / 8]byte
+	fI32    int32
+	fFlag   bool
+	fStr    string
+	fJunk   int64
 }
 
 func TO_SmallEX(data []byte) *SmallEX {
 	out := &SmallEX{}
-	out.meta.Init(data)
+	out.source = protocache.AsMessage(data)
 	return out
 }
 
-func (m *SmallEX) HasSource() bool { return m.meta.HasSource() }
+func (m *SmallEX) HasSource() bool { return m.source.IsValid() }
 
 func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, 5)
-	if !m.meta.IsVisited(_FIELD_Small_i32, _FIELD_TOTAL_Small) {
-		field := m.meta.RawField(_FIELD_Small_i32)
-		parts[0] = field.RawWords()
+	parts := make([][]uint32, _FIELD_TOTAL_Small)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Small_i32) {
+		field := m.source.GetField(_FIELD_Small_i32)
+		parts[_FIELD_Small_i32] = field.RawWords()
 	} else if m.fI32 != 0 {
-		parts[0], _ = protocache.EncodeScalar[int32](m.fI32)
+		parts[_FIELD_Small_i32], _ = protocache.EncodeScalar[int32](m.fI32)
 	}
-	if !m.meta.IsVisited(_FIELD_Small_flag, _FIELD_TOTAL_Small) {
-		field := m.meta.RawField(_FIELD_Small_flag)
-		parts[1] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Small_flag) {
+		field := m.source.GetField(_FIELD_Small_flag)
+		parts[_FIELD_Small_flag] = field.RawWords()
 	} else if m.fFlag {
-		parts[1], _ = protocache.EncodeBool(m.fFlag)
+		parts[_FIELD_Small_flag], _ = protocache.EncodeBool(m.fFlag)
 	}
-	if !m.meta.IsVisited(_FIELD_Small_str, _FIELD_TOTAL_Small) {
-		field := m.meta.RawField(_FIELD_Small_str)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Small_str) {
+		field := m.source.GetField(_FIELD_Small_str)
 		if obj := field.DetectObject(); obj != nil {
-			parts[3] = protocache.BytesToWords(protocache.DetectBytes(obj))
+			parts[_FIELD_Small_str] = protocache.BytesToWords(protocache.DetectBytes(obj))
 		} else {
-			parts[3] = field.RawWords()
+			parts[_FIELD_Small_str] = field.RawWords()
 		}
 	} else if len(m.fStr) != 0 {
 		part, err := protocache.EncodeString(m.fStr)
 		if err != nil {
 			return nil, err
 		}
-		parts[3] = part
+		parts[_FIELD_Small_str] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Small_junk, _FIELD_TOTAL_Small) {
-		field := m.meta.RawField(_FIELD_Small_junk)
-		parts[4] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Small_junk) {
+		field := m.source.GetField(_FIELD_Small_junk)
+		parts[_FIELD_Small_junk] = field.RawWords()
 	} else if m.fJunk != 0 {
-		parts[4], _ = protocache.EncodeScalar[int64](m.fJunk)
+		parts[_FIELD_Small_junk], _ = protocache.EncodeScalar[int64](m.fJunk)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -77,63 +78,64 @@ func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 func (m *SmallEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_Small(m)) }
 
 func (m *SmallEX) GetI32() int32 {
-	if m.meta.IsVisited(_FIELD_Small_i32, _FIELD_TOTAL_Small) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Small_i32) {
 		return m.fI32
 	}
-	field := m.meta.RawField(_FIELD_Small_i32)
+	field := m.source.GetField(_FIELD_Small_i32)
 	m.fI32 = field.GetInt32()
-	m.meta.Visit(_FIELD_Small_i32, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_i32)
 	return m.fI32
 }
 
 func (m *SmallEX) SetI32(v int32) {
 	m.fI32 = v
-	m.meta.Visit(_FIELD_Small_i32, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_i32)
 }
 
 func (m *SmallEX) GetFlag() bool {
-	if m.meta.IsVisited(_FIELD_Small_flag, _FIELD_TOTAL_Small) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Small_flag) {
 		return m.fFlag
 	}
-	field := m.meta.RawField(_FIELD_Small_flag)
+
+	field := m.source.GetField(_FIELD_Small_flag)
 	m.fFlag = field.GetBool()
-	m.meta.Visit(_FIELD_Small_flag, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_flag)
 	return m.fFlag
 }
 
 func (m *SmallEX) SetFlag(v bool) {
 	m.fFlag = v
-	m.meta.Visit(_FIELD_Small_flag, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_flag)
 }
 
 func (m *SmallEX) GetStr() string {
-	if m.meta.IsVisited(_FIELD_Small_str, _FIELD_TOTAL_Small) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Small_str) {
 		return m.fStr
 	}
-	field := m.meta.RawField(_FIELD_Small_str)
+	field := m.source.GetField(_FIELD_Small_str)
 	m.fStr = field.GetString()
-	m.meta.Visit(_FIELD_Small_str, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_str)
 	return m.fStr
 }
 
 func (m *SmallEX) SetStr(v string) {
 	m.fStr = v
-	m.meta.Visit(_FIELD_Small_str, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_str)
 }
 
 func (m *SmallEX) GetJunk() int64 {
-	if m.meta.IsVisited(_FIELD_Small_junk, _FIELD_TOTAL_Small) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Small_junk) {
 		return m.fJunk
 	}
-	field := m.meta.RawField(_FIELD_Small_junk)
+	field := m.source.GetField(_FIELD_Small_junk)
 	m.fJunk = field.GetInt64()
-	m.meta.Visit(_FIELD_Small_junk, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_junk)
 	return m.fJunk
 }
 
 func (m *SmallEX) SetJunk(v int64) {
 	m.fJunk = v
-	m.meta.Visit(_FIELD_Small_junk, _FIELD_TOTAL_Small)
+	protocache.Visit(m.visited[:], _FIELD_Small_junk)
 }
 
 func DETECT_Vec2D_Vec1D(data []byte) []byte {
@@ -316,7 +318,8 @@ func DETECT_Main(data []byte) []byte {
 }
 
 type MainEX struct {
-	meta     protocache.MessageEX
+	source   protocache.Message
+	visited  [(_FIELD_TOTAL_Main + 7) / 8]byte
 	fI32     int32
 	fU32     uint32
 	fI64     int64
@@ -352,99 +355,99 @@ type MainEX struct {
 
 func TO_MainEX(data []byte) *MainEX {
 	out := &MainEX{}
-	out.meta.Init(data)
+	out.source = protocache.AsMessage(data)
 	return out
 }
 
-func (m *MainEX) HasSource() bool { return m.meta.HasSource() }
+func (m *MainEX) HasSource() bool { return m.source.IsValid() }
 
 func ENCODE_Main(m *MainEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, 32)
-	if !m.meta.IsVisited(_FIELD_Main_i32, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_i32)
-		parts[0] = field.RawWords()
+	parts := make([][]uint32, _FIELD_TOTAL_Main)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_i32) {
+		field := m.source.GetField(_FIELD_Main_i32)
+		parts[_FIELD_Main_i32] = field.RawWords()
 	} else if m.fI32 != 0 {
-		parts[0], _ = protocache.EncodeScalar[int32](m.fI32)
+		parts[_FIELD_Main_i32], _ = protocache.EncodeScalar[int32](m.fI32)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_u32, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_u32)
-		parts[1] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_u32) {
+		field := m.source.GetField(_FIELD_Main_u32)
+		parts[_FIELD_Main_u32] = field.RawWords()
 	} else if m.fU32 != 0 {
-		parts[1], _ = protocache.EncodeScalar[uint32](m.fU32)
+		parts[_FIELD_Main_u32], _ = protocache.EncodeScalar[uint32](m.fU32)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_i64, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_i64)
-		parts[2] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_i64) {
+		field := m.source.GetField(_FIELD_Main_i64)
+		parts[_FIELD_Main_i64] = field.RawWords()
 	} else if m.fI64 != 0 {
-		parts[2], _ = protocache.EncodeScalar[int64](m.fI64)
+		parts[_FIELD_Main_i64], _ = protocache.EncodeScalar[int64](m.fI64)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_u64, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_u64)
-		parts[3] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_u64) {
+		field := m.source.GetField(_FIELD_Main_u64)
+		parts[_FIELD_Main_u64] = field.RawWords()
 	} else if m.fU64 != 0 {
-		parts[3], _ = protocache.EncodeScalar[uint64](m.fU64)
+		parts[_FIELD_Main_u64], _ = protocache.EncodeScalar[uint64](m.fU64)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_flag, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_flag)
-		parts[4] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_flag) {
+		field := m.source.GetField(_FIELD_Main_flag)
+		parts[_FIELD_Main_flag] = field.RawWords()
 	} else if m.fFlag {
-		parts[4], _ = protocache.EncodeBool(m.fFlag)
+		parts[_FIELD_Main_flag], _ = protocache.EncodeBool(m.fFlag)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_mode, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_mode)
-		parts[5] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_mode) {
+		field := m.source.GetField(_FIELD_Main_mode)
+		parts[_FIELD_Main_mode] = field.RawWords()
 	} else if m.fMode != 0 {
-		parts[5], _ = protocache.EncodeScalar[int32](int32(m.fMode))
+		parts[_FIELD_Main_mode], _ = protocache.EncodeScalar[int32](int32(m.fMode))
 	}
-	if !m.meta.IsVisited(_FIELD_Main_str, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_str)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_str) {
+		field := m.source.GetField(_FIELD_Main_str)
 		if obj := field.DetectObject(); obj != nil {
-			parts[6] = protocache.BytesToWords(protocache.DetectBytes(obj))
+			parts[_FIELD_Main_str] = protocache.BytesToWords(protocache.DetectBytes(obj))
 		} else {
-			parts[6] = field.RawWords()
+			parts[_FIELD_Main_str] = field.RawWords()
 		}
 	} else if len(m.fStr) != 0 {
 		part, err := protocache.EncodeString(m.fStr)
 		if err != nil {
 			return nil, err
 		}
-		parts[6] = part
+		parts[_FIELD_Main_str] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_data, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_data)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_data) {
+		field := m.source.GetField(_FIELD_Main_data)
 		if obj := field.DetectObject(); obj != nil {
-			parts[7] = protocache.BytesToWords(protocache.DetectBytes(obj))
+			parts[_FIELD_Main_data] = protocache.BytesToWords(protocache.DetectBytes(obj))
 		} else {
-			parts[7] = field.RawWords()
+			parts[_FIELD_Main_data] = field.RawWords()
 		}
 	} else if len(m.fData) != 0 {
 		part, err := protocache.EncodeBytes(m.fData)
 		if err != nil {
 			return nil, err
 		}
-		parts[7] = part
+		parts[_FIELD_Main_data] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_f32, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_f32)
-		parts[8] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_f32) {
+		field := m.source.GetField(_FIELD_Main_f32)
+		parts[_FIELD_Main_f32] = field.RawWords()
 	} else if m.fF32 != 0 {
-		parts[8], _ = protocache.EncodeScalar[float32](m.fF32)
+		parts[_FIELD_Main_f32], _ = protocache.EncodeScalar[float32](m.fF32)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_f64, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_f64)
-		parts[9] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_f64) {
+		field := m.source.GetField(_FIELD_Main_f64)
+		parts[_FIELD_Main_f64] = field.RawWords()
 	} else if m.fF64 != 0 {
-		parts[9], _ = protocache.EncodeScalar[float64](m.fF64)
+		parts[_FIELD_Main_f64], _ = protocache.EncodeScalar[float64](m.fF64)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_object)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_object) {
+		field := m.source.GetField(_FIELD_Main_object)
 		if obj := field.DetectObject(); obj != nil {
-			parts[10] = protocache.BytesToWords(DETECT_Small(obj))
+			parts[_FIELD_Main_object] = protocache.BytesToWords(DETECT_Small(obj))
 		} else {
-			parts[10] = field.RawWords()
+			parts[_FIELD_Main_object] = field.RawWords()
 		}
 	} else if m.fObject != nil {
 		part, err := ENCODE_Small(m.fObject)
@@ -452,177 +455,177 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			return nil, err
 		}
 		if len(part) > 1 {
-			parts[10] = part
+			parts[_FIELD_Main_object] = part
 		}
 	}
-	if !m.meta.IsVisited(_FIELD_Main_i32v, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_i32v)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_i32v) {
+		field := m.source.GetField(_FIELD_Main_i32v)
 		if obj := field.DetectObject(); obj != nil {
-			parts[11] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+			parts[_FIELD_Main_i32v] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
-			parts[11] = field.RawWords()
+			parts[_FIELD_Main_i32v] = field.RawWords()
 		}
 	} else if len(m.fI32V) != 0 {
 		part, err := protocache.EncodeScalarVector[int32](m.fI32V)
 		if err != nil {
 			return nil, err
 		}
-		parts[11] = part
+		parts[_FIELD_Main_i32v] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_u64v, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_u64v)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_u64v) {
+		field := m.source.GetField(_FIELD_Main_u64v)
 		if obj := field.DetectObject(); obj != nil {
-			parts[12] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+			parts[_FIELD_Main_u64v] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
-			parts[12] = field.RawWords()
+			parts[_FIELD_Main_u64v] = field.RawWords()
 		}
 	} else if len(m.fU64V) != 0 {
 		part, err := protocache.EncodeScalarVector[uint64](m.fU64V)
 		if err != nil {
 			return nil, err
 		}
-		parts[12] = part
+		parts[_FIELD_Main_u64v] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_strv, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_strv)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_strv) {
+		field := m.source.GetField(_FIELD_Main_strv)
 		if obj := field.DetectObject(); obj != nil {
-			parts[13] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
+			parts[_FIELD_Main_strv] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
 		} else {
-			parts[13] = field.RawWords()
+			parts[_FIELD_Main_strv] = field.RawWords()
 		}
 	} else if len(m.fStrv) != 0 {
 		part, err := protocache.EncodeStringArray(m.fStrv)
 		if err != nil {
 			return nil, err
 		}
-		parts[13] = part
+		parts[_FIELD_Main_strv] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_datav, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_datav)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_datav) {
+		field := m.source.GetField(_FIELD_Main_datav)
 		if obj := field.DetectObject(); obj != nil {
-			parts[14] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
+			parts[_FIELD_Main_datav] = protocache.BytesToWords(protocache.DetectArray(obj, protocache.DetectBytes))
 		} else {
-			parts[14] = field.RawWords()
+			parts[_FIELD_Main_datav] = field.RawWords()
 		}
 	} else if len(m.fDatav) != 0 {
 		part, err := protocache.EncodeBytesArray(m.fDatav)
 		if err != nil {
 			return nil, err
 		}
-		parts[14] = part
+		parts[_FIELD_Main_datav] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_f32v, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_f32v)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_f32v) {
+		field := m.source.GetField(_FIELD_Main_f32v)
 		if obj := field.DetectObject(); obj != nil {
-			parts[15] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+			parts[_FIELD_Main_f32v] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
-			parts[15] = field.RawWords()
+			parts[_FIELD_Main_f32v] = field.RawWords()
 		}
 	} else if len(m.fF32V) != 0 {
 		part, err := protocache.EncodeScalarVector[float32](m.fF32V)
 		if err != nil {
 			return nil, err
 		}
-		parts[15] = part
+		parts[_FIELD_Main_f32v] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_f64v, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_f64v)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_f64v) {
+		field := m.source.GetField(_FIELD_Main_f64v)
 		if obj := field.DetectObject(); obj != nil {
-			parts[16] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+			parts[_FIELD_Main_f64v] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
-			parts[16] = field.RawWords()
+			parts[_FIELD_Main_f64v] = field.RawWords()
 		}
 	} else if len(m.fF64V) != 0 {
 		part, err := protocache.EncodeScalarVector[float64](m.fF64V)
 		if err != nil {
 			return nil, err
 		}
-		parts[16] = part
+		parts[_FIELD_Main_f64v] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_flags, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_flags)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_flags) {
+		field := m.source.GetField(_FIELD_Main_flags)
 		if obj := field.DetectObject(); obj != nil {
-			parts[17] = protocache.BytesToWords(protocache.DetectBytes(obj))
+			parts[_FIELD_Main_flags] = protocache.BytesToWords(protocache.DetectBytes(obj))
 		} else {
-			parts[17] = field.RawWords()
+			parts[_FIELD_Main_flags] = field.RawWords()
 		}
 	} else if len(m.fFlags) != 0 {
 		part, err := protocache.EncodeBoolArray(m.fFlags)
 		if err != nil {
 			return nil, err
 		}
-		parts[17] = part
+		parts[_FIELD_Main_flags] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_objectv, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_objectv)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_objectv) {
+		field := m.source.GetField(_FIELD_Main_objectv)
 		if obj := field.DetectObject(); obj != nil {
-			parts[18] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_Small))
+			parts[_FIELD_Main_objectv] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_Small))
 		} else {
-			parts[18] = field.RawWords()
+			parts[_FIELD_Main_objectv] = field.RawWords()
 		}
 	} else if len(m.fObjectv) != 0 {
 		part, err := protocache.EncodeObjectArray(m.fObjectv, ENCODE_Small)
 		if err != nil {
 			return nil, err
 		}
-		parts[18] = part
+		parts[_FIELD_Main_objectv] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_t_u32, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_t_u32)
-		parts[19] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_t_u32) {
+		field := m.source.GetField(_FIELD_Main_t_u32)
+		parts[_FIELD_Main_t_u32] = field.RawWords()
 	} else if m.fTU32 != 0 {
-		parts[19], _ = protocache.EncodeScalar[uint32](m.fTU32)
+		parts[_FIELD_Main_t_u32], _ = protocache.EncodeScalar[uint32](m.fTU32)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_t_i32, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_t_i32)
-		parts[20] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_t_i32) {
+		field := m.source.GetField(_FIELD_Main_t_i32)
+		parts[_FIELD_Main_t_i32] = field.RawWords()
 	} else if m.fTI32 != 0 {
-		parts[20], _ = protocache.EncodeScalar[int32](m.fTI32)
+		parts[_FIELD_Main_t_i32], _ = protocache.EncodeScalar[int32](m.fTI32)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_t_s32, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_t_s32)
-		parts[21] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_t_s32) {
+		field := m.source.GetField(_FIELD_Main_t_s32)
+		parts[_FIELD_Main_t_s32] = field.RawWords()
 	} else if m.fTS32 != 0 {
-		parts[21], _ = protocache.EncodeScalar[int32](m.fTS32)
+		parts[_FIELD_Main_t_s32], _ = protocache.EncodeScalar[int32](m.fTS32)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_t_u64, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_t_u64)
-		parts[22] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_t_u64) {
+		field := m.source.GetField(_FIELD_Main_t_u64)
+		parts[_FIELD_Main_t_u64] = field.RawWords()
 	} else if m.fTU64 != 0 {
-		parts[22], _ = protocache.EncodeScalar[uint64](m.fTU64)
+		parts[_FIELD_Main_t_u64], _ = protocache.EncodeScalar[uint64](m.fTU64)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_t_i64, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_t_i64)
-		parts[23] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_t_i64) {
+		field := m.source.GetField(_FIELD_Main_t_i64)
+		parts[_FIELD_Main_t_i64] = field.RawWords()
 	} else if m.fTI64 != 0 {
-		parts[23], _ = protocache.EncodeScalar[int64](m.fTI64)
+		parts[_FIELD_Main_t_i64], _ = protocache.EncodeScalar[int64](m.fTI64)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_t_s64, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_t_s64)
-		parts[24] = field.RawWords()
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_t_s64) {
+		field := m.source.GetField(_FIELD_Main_t_s64)
+		parts[_FIELD_Main_t_s64] = field.RawWords()
 	} else if m.fTS64 != 0 {
-		parts[24], _ = protocache.EncodeScalar[int64](m.fTS64)
+		parts[_FIELD_Main_t_s64], _ = protocache.EncodeScalar[int64](m.fTS64)
 	}
-	if !m.meta.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_index)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_index) {
+		field := m.source.GetField(_FIELD_Main_index)
 		if obj := field.DetectObject(); obj != nil {
-			parts[25] = protocache.BytesToWords(protocache.DetectMap(obj, protocache.DetectBytes, nil))
+			parts[_FIELD_Main_index] = protocache.BytesToWords(protocache.DetectMap(obj, protocache.DetectBytes, nil))
 		} else {
-			parts[25] = field.RawWords()
+			parts[_FIELD_Main_index] = field.RawWords()
 		}
 	} else if len(m.fIndex) != 0 {
 		part, err := protocache.EncodeStringMap(m.fIndex, protocache.EncodeScalar[int32])
 		if err != nil {
 			return nil, err
 		}
-		parts[25] = part
+		parts[_FIELD_Main_index] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_objects, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_objects)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_objects) {
+		field := m.source.GetField(_FIELD_Main_objects)
 		if obj := field.DetectObject(); obj != nil {
-			parts[26] = protocache.BytesToWords(protocache.DetectMap(obj, nil, DETECT_Small))
+			parts[_FIELD_Main_objects] = protocache.BytesToWords(protocache.DetectMap(obj, nil, DETECT_Small))
 		} else {
-			parts[26] = field.RawWords()
+			parts[_FIELD_Main_objects] = field.RawWords()
 		}
 	} else if len(m.fObjects) != 0 {
 		part, err := protocache.EncodeScalarMap(m.fObjects,
@@ -631,14 +634,14 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		if err != nil {
 			return nil, err
 		}
-		parts[26] = part
+		parts[_FIELD_Main_objects] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_matrix, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_matrix)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_matrix) {
+		field := m.source.GetField(_FIELD_Main_matrix)
 		if obj := field.DetectObject(); obj != nil {
-			parts[27] = protocache.BytesToWords(DETECT_Vec2D(obj))
+			parts[_FIELD_Main_matrix] = protocache.BytesToWords(DETECT_Vec2D(obj))
 		} else {
-			parts[27] = field.RawWords()
+			parts[_FIELD_Main_matrix] = field.RawWords()
 		}
 	} else if m.fMatrix != nil {
 		part, err := ENCODE_Vec2D(m.fMatrix)
@@ -646,29 +649,29 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			return nil, err
 		}
 		if len(part) > 1 {
-			parts[27] = part
+			parts[_FIELD_Main_matrix] = part
 		}
 	}
-	if !m.meta.IsVisited(_FIELD_Main_vector, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_vector)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_vector) {
+		field := m.source.GetField(_FIELD_Main_vector)
 		if obj := field.DetectObject(); obj != nil {
-			parts[28] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_ArrMap))
+			parts[_FIELD_Main_vector] = protocache.BytesToWords(protocache.DetectArray(obj, DETECT_ArrMap))
 		} else {
-			parts[28] = field.RawWords()
+			parts[_FIELD_Main_vector] = field.RawWords()
 		}
 	} else if len(m.fVector) != 0 {
 		part, err := protocache.EncodeObjectArray(m.fVector, ENCODE_ArrMap)
 		if err != nil {
 			return nil, err
 		}
-		parts[28] = part
+		parts[_FIELD_Main_vector] = part
 	}
-	if !m.meta.IsVisited(_FIELD_Main_arrays, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_arrays)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_arrays) {
+		field := m.source.GetField(_FIELD_Main_arrays)
 		if obj := field.DetectObject(); obj != nil {
-			parts[29] = protocache.BytesToWords(DETECT_ArrMap(obj))
+			parts[_FIELD_Main_arrays] = protocache.BytesToWords(DETECT_ArrMap(obj))
 		} else {
-			parts[29] = field.RawWords()
+			parts[_FIELD_Main_arrays] = field.RawWords()
 		}
 	} else if m.fArrays != nil {
 		part, err := ENCODE_ArrMap(m.fArrays)
@@ -676,22 +679,22 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 			return nil, err
 		}
 		if len(part) > 1 {
-			parts[29] = part
+			parts[_FIELD_Main_arrays] = part
 		}
 	}
-	if !m.meta.IsVisited(_FIELD_Main_modev, _FIELD_TOTAL_Main) {
-		field := m.meta.RawField(_FIELD_Main_modev)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_modev) {
+		field := m.source.GetField(_FIELD_Main_modev)
 		if obj := field.DetectObject(); obj != nil {
-			parts[31] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
+			parts[_FIELD_Main_modev] = protocache.BytesToWords(protocache.DetectArray(obj, nil))
 		} else {
-			parts[31] = field.RawWords()
+			parts[_FIELD_Main_modev] = field.RawWords()
 		}
 	} else if len(m.fModev) != 0 {
 		part, err := protocache.EncodeEnumArray(m.fModev)
 		if err != nil {
 			return nil, err
 		}
-		parts[31] = part
+		parts[_FIELD_Main_modev] = part
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -699,119 +702,119 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 func (m *MainEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_Main(m)) }
 
 func (m *MainEX) GetI32() int32 {
-	if m.meta.IsVisited(_FIELD_Main_i32, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_i32) {
 		return m.fI32
 	}
-	field := m.meta.RawField(_FIELD_Main_i32)
+	field := m.source.GetField(_FIELD_Main_i32)
 	m.fI32 = field.GetInt32()
-	m.meta.Visit(_FIELD_Main_i32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_i32)
 	return m.fI32
 }
 
 func (m *MainEX) SetI32(v int32) {
 	m.fI32 = v
-	m.meta.Visit(_FIELD_Main_i32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_i32)
 }
 
 func (m *MainEX) GetU32() uint32 {
-	if m.meta.IsVisited(_FIELD_Main_u32, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_u32) {
 		return m.fU32
 	}
-	field := m.meta.RawField(_FIELD_Main_u32)
+	field := m.source.GetField(_FIELD_Main_u32)
 	m.fU32 = field.GetUint32()
-	m.meta.Visit(_FIELD_Main_u32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_u32)
 	return m.fU32
 }
 
 func (m *MainEX) SetU32(v uint32) {
 	m.fU32 = v
-	m.meta.Visit(_FIELD_Main_u32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_u32)
 }
 
 func (m *MainEX) GetI64() int64 {
-	if m.meta.IsVisited(_FIELD_Main_i64, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_i64) {
 		return m.fI64
 	}
-	field := m.meta.RawField(_FIELD_Main_i64)
+	field := m.source.GetField(_FIELD_Main_i64)
 	m.fI64 = field.GetInt64()
-	m.meta.Visit(_FIELD_Main_i64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_i64)
 	return m.fI64
 }
 
 func (m *MainEX) SetI64(v int64) {
 	m.fI64 = v
-	m.meta.Visit(_FIELD_Main_i64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_i64)
 }
 
 func (m *MainEX) GetU64() uint64 {
-	if m.meta.IsVisited(_FIELD_Main_u64, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_u64) {
 		return m.fU64
 	}
-	field := m.meta.RawField(_FIELD_Main_u64)
+	field := m.source.GetField(_FIELD_Main_u64)
 	m.fU64 = field.GetUint64()
-	m.meta.Visit(_FIELD_Main_u64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_u64)
 	return m.fU64
 }
 
 func (m *MainEX) SetU64(v uint64) {
 	m.fU64 = v
-	m.meta.Visit(_FIELD_Main_u64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_u64)
 }
 
 func (m *MainEX) GetFlag() bool {
-	if m.meta.IsVisited(_FIELD_Main_flag, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_flag) {
 		return m.fFlag
 	}
-	field := m.meta.RawField(_FIELD_Main_flag)
+	field := m.source.GetField(_FIELD_Main_flag)
 	m.fFlag = field.GetBool()
-	m.meta.Visit(_FIELD_Main_flag, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_flag)
 	return m.fFlag
 }
 
 func (m *MainEX) SetFlag(v bool) {
 	m.fFlag = v
-	m.meta.Visit(_FIELD_Main_flag, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_flag)
 }
 
 func (m *MainEX) GetMode() Mode {
-	if m.meta.IsVisited(_FIELD_Main_mode, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_mode) {
 		return m.fMode
 	}
-	field := m.meta.RawField(_FIELD_Main_mode)
+	field := m.source.GetField(_FIELD_Main_mode)
 	m.fMode = Mode(field.GetEnumValue())
-	m.meta.Visit(_FIELD_Main_mode, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_mode)
 	return m.fMode
 }
 
 func (m *MainEX) SetMode(v Mode) {
 	m.fMode = v
-	m.meta.Visit(_FIELD_Main_mode, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_mode)
 }
 
 func (m *MainEX) GetStr() string {
-	if m.meta.IsVisited(_FIELD_Main_str, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_str) {
 		return m.fStr
 	}
-	field := m.meta.RawField(_FIELD_Main_str)
+	field := m.source.GetField(_FIELD_Main_str)
 	m.fStr = field.GetString()
-	m.meta.Visit(_FIELD_Main_str, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_str)
 	return m.fStr
 }
 
 func (m *MainEX) SetStr(v string) {
 	m.fStr = v
-	m.meta.Visit(_FIELD_Main_str, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_str)
 }
 
 func (m *MainEX) GetData() []byte {
-	if m.meta.IsVisited(_FIELD_Main_data, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_data) {
 		return m.fData
 	}
-	field := m.meta.RawField(_FIELD_Main_data)
+	field := m.source.GetField(_FIELD_Main_data)
 	if data := field.GetBytes(); data != nil {
 		m.fData = append([]byte(nil), data...)
 	}
-	m.meta.Visit(_FIELD_Main_data, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_data)
 	return m.fData
 }
 
@@ -821,61 +824,61 @@ func (m *MainEX) SetData(v []byte) {
 	} else {
 		m.fData = append([]byte(nil), v...)
 	}
-	m.meta.Visit(_FIELD_Main_data, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_data)
 }
 
 func (m *MainEX) GetF32() float32 {
-	if m.meta.IsVisited(_FIELD_Main_f32, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_f32) {
 		return m.fF32
 	}
-	field := m.meta.RawField(_FIELD_Main_f32)
+	field := m.source.GetField(_FIELD_Main_f32)
 	m.fF32 = field.GetFloat32()
-	m.meta.Visit(_FIELD_Main_f32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f32)
 	return m.fF32
 }
 
 func (m *MainEX) SetF32(v float32) {
 	m.fF32 = v
-	m.meta.Visit(_FIELD_Main_f32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f32)
 }
 
 func (m *MainEX) GetF64() float64 {
-	if m.meta.IsVisited(_FIELD_Main_f64, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_f64) {
 		return m.fF64
 	}
-	field := m.meta.RawField(_FIELD_Main_f64)
+	field := m.source.GetField(_FIELD_Main_f64)
 	m.fF64 = field.GetFloat64()
-	m.meta.Visit(_FIELD_Main_f64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f64)
 	return m.fF64
 }
 
 func (m *MainEX) SetF64(v float64) {
 	m.fF64 = v
-	m.meta.Visit(_FIELD_Main_f64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f64)
 }
 
 func (m *MainEX) GetObject() *SmallEX {
-	if m.meta.IsVisited(_FIELD_Main_object, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_object) {
 		return m.fObject
 	}
-	field := m.meta.RawField(_FIELD_Main_object)
+	field := m.source.GetField(_FIELD_Main_object)
 	m.fObject = TO_SmallEX(field.GetObject())
-	m.meta.Visit(_FIELD_Main_object, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_object)
 	return m.fObject
 }
 
 func (m *MainEX) SetObject(v *SmallEX) {
 	m.fObject = v
-	m.meta.Visit(_FIELD_Main_object, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_object)
 }
 
 func (m *MainEX) GetI32V() []int32 {
-	if m.meta.IsVisited(_FIELD_Main_i32v, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_i32v) {
 		return m.fI32V
 	}
-	field := m.meta.RawField(_FIELD_Main_i32v)
+	field := m.source.GetField(_FIELD_Main_i32v)
 	m.fI32V = append([]int32(nil), field.GetInt32Array()...)
-	m.meta.Visit(_FIELD_Main_i32v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_i32v)
 	return m.fI32V
 }
 
@@ -885,16 +888,16 @@ func (m *MainEX) SetI32V(v []int32) {
 	} else {
 		m.fI32V = append(m.fI32V[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_i32v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_i32v)
 }
 
 func (m *MainEX) GetU64V() []uint64 {
-	if m.meta.IsVisited(_FIELD_Main_u64v, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_u64v) {
 		return m.fU64V
 	}
-	field := m.meta.RawField(_FIELD_Main_u64v)
+	field := m.source.GetField(_FIELD_Main_u64v)
 	m.fU64V = append([]uint64(nil), field.GetUint64Array()...)
-	m.meta.Visit(_FIELD_Main_u64v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_u64v)
 	return m.fU64V
 }
 
@@ -904,20 +907,20 @@ func (m *MainEX) SetU64V(v []uint64) {
 	} else {
 		m.fU64V = append(m.fU64V[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_u64v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_u64v)
 }
 
 func (m *MainEX) GetStrv() []string {
-	if m.meta.IsVisited(_FIELD_Main_strv, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_strv) {
 		return m.fStrv
 	}
-	field := m.meta.RawField(_FIELD_Main_strv)
+	field := m.source.GetField(_FIELD_Main_strv)
 	arr := protocache.AsStringArray(field.GetObject())
 	m.fStrv = make([]string, int(arr.Size()))
 	for i := uint32(0); i < arr.Size(); i++ {
 		m.fStrv[i] = arr.Get(i)
 	}
-	m.meta.Visit(_FIELD_Main_strv, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_strv)
 	return m.fStrv
 }
 
@@ -927,14 +930,14 @@ func (m *MainEX) SetStrv(v []string) {
 	} else {
 		m.fStrv = append(m.fStrv[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_strv, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_strv)
 }
 
 func (m *MainEX) GetDatav() [][]byte {
-	if m.meta.IsVisited(_FIELD_Main_datav, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_datav) {
 		return m.fDatav
 	}
-	field := m.meta.RawField(_FIELD_Main_datav)
+	field := m.source.GetField(_FIELD_Main_datav)
 	arr := protocache.AsBytesArray(field.GetObject())
 	m.fDatav = make([][]byte, int(arr.Size()))
 	for i := uint32(0); i < arr.Size(); i++ {
@@ -942,7 +945,7 @@ func (m *MainEX) GetDatav() [][]byte {
 			m.fDatav[i] = append([]byte(nil), data...)
 		}
 	}
-	m.meta.Visit(_FIELD_Main_datav, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_datav)
 	return m.fDatav
 }
 
@@ -957,16 +960,16 @@ func (m *MainEX) SetDatav(v [][]byte) {
 			}
 		}
 	}
-	m.meta.Visit(_FIELD_Main_datav, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_datav)
 }
 
 func (m *MainEX) GetF32V() []float32 {
-	if m.meta.IsVisited(_FIELD_Main_f32v, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_f32v) {
 		return m.fF32V
 	}
-	field := m.meta.RawField(_FIELD_Main_f32v)
+	field := m.source.GetField(_FIELD_Main_f32v)
 	m.fF32V = append([]float32(nil), field.GetFloat32Array()...)
-	m.meta.Visit(_FIELD_Main_f32v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f32v)
 	return m.fF32V
 }
 
@@ -976,16 +979,16 @@ func (m *MainEX) SetF32V(v []float32) {
 	} else {
 		m.fF32V = append(m.fF32V[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_f32v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f32v)
 }
 
 func (m *MainEX) GetF64V() []float64 {
-	if m.meta.IsVisited(_FIELD_Main_f64v, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_f64v) {
 		return m.fF64V
 	}
-	field := m.meta.RawField(_FIELD_Main_f64v)
+	field := m.source.GetField(_FIELD_Main_f64v)
 	m.fF64V = append([]float64(nil), field.GetFloat64Array()...)
-	m.meta.Visit(_FIELD_Main_f64v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f64v)
 	return m.fF64V
 }
 
@@ -995,16 +998,16 @@ func (m *MainEX) SetF64V(v []float64) {
 	} else {
 		m.fF64V = append(m.fF64V[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_f64v, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_f64v)
 }
 
 func (m *MainEX) GetFlags() []bool {
-	if m.meta.IsVisited(_FIELD_Main_flags, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_flags) {
 		return m.fFlags
 	}
-	field := m.meta.RawField(_FIELD_Main_flags)
+	field := m.source.GetField(_FIELD_Main_flags)
 	m.fFlags = append([]bool(nil), field.GetBoolArray()...)
-	m.meta.Visit(_FIELD_Main_flags, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_flags)
 	return m.fFlags
 }
 
@@ -1014,21 +1017,21 @@ func (m *MainEX) SetFlags(v []bool) {
 	} else {
 		m.fFlags = append(m.fFlags[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_flags, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_flags)
 }
 
 func (m *MainEX) GetObjectv() []*SmallEX {
-	if m.meta.IsVisited(_FIELD_Main_objectv, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_objectv) {
 		return m.fObjectv
 	}
-	field := m.meta.RawField(_FIELD_Main_objectv)
+	field := m.source.GetField(_FIELD_Main_objectv)
 	arr := field.GetArray()
 	m.fObjectv = make([]*SmallEX, int(arr.Size()))
 	for i := uint32(0); i < arr.Size(); i++ {
 		elem := arr.Get(i)
 		m.fObjectv[i] = TO_SmallEX(elem.GetObject())
 	}
-	m.meta.Visit(_FIELD_Main_objectv, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_objectv)
 	return m.fObjectv
 }
 
@@ -1038,104 +1041,104 @@ func (m *MainEX) SetObjectv(v []*SmallEX) {
 	} else {
 		m.fObjectv = append(m.fObjectv[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_objectv, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_objectv)
 }
 
 func (m *MainEX) GetTU32() uint32 {
-	if m.meta.IsVisited(_FIELD_Main_t_u32, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_t_u32) {
 		return m.fTU32
 	}
-	field := m.meta.RawField(_FIELD_Main_t_u32)
+	field := m.source.GetField(_FIELD_Main_t_u32)
 	m.fTU32 = field.GetUint32()
-	m.meta.Visit(_FIELD_Main_t_u32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_u32)
 	return m.fTU32
 }
 
 func (m *MainEX) SetTU32(v uint32) {
 	m.fTU32 = v
-	m.meta.Visit(_FIELD_Main_t_u32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_u32)
 }
 
 func (m *MainEX) GetTI32() int32 {
-	if m.meta.IsVisited(_FIELD_Main_t_i32, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_t_i32) {
 		return m.fTI32
 	}
-	field := m.meta.RawField(_FIELD_Main_t_i32)
+	field := m.source.GetField(_FIELD_Main_t_i32)
 	m.fTI32 = field.GetInt32()
-	m.meta.Visit(_FIELD_Main_t_i32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_i32)
 	return m.fTI32
 }
 
 func (m *MainEX) SetTI32(v int32) {
 	m.fTI32 = v
-	m.meta.Visit(_FIELD_Main_t_i32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_i32)
 }
 
 func (m *MainEX) GetTS32() int32 {
-	if m.meta.IsVisited(_FIELD_Main_t_s32, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_t_s32) {
 		return m.fTS32
 	}
-	field := m.meta.RawField(_FIELD_Main_t_s32)
+	field := m.source.GetField(_FIELD_Main_t_s32)
 	m.fTS32 = field.GetInt32()
-	m.meta.Visit(_FIELD_Main_t_s32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_s32)
 	return m.fTS32
 }
 
 func (m *MainEX) SetTS32(v int32) {
 	m.fTS32 = v
-	m.meta.Visit(_FIELD_Main_t_s32, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_s32)
 }
 
 func (m *MainEX) GetTU64() uint64 {
-	if m.meta.IsVisited(_FIELD_Main_t_u64, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_t_u64) {
 		return m.fTU64
 	}
-	field := m.meta.RawField(_FIELD_Main_t_u64)
+	field := m.source.GetField(_FIELD_Main_t_u64)
 	m.fTU64 = field.GetUint64()
-	m.meta.Visit(_FIELD_Main_t_u64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_u64)
 	return m.fTU64
 }
 
 func (m *MainEX) SetTU64(v uint64) {
 	m.fTU64 = v
-	m.meta.Visit(_FIELD_Main_t_u64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_u64)
 }
 
 func (m *MainEX) GetTI64() int64 {
-	if m.meta.IsVisited(_FIELD_Main_t_i64, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_t_i64) {
 		return m.fTI64
 	}
-	field := m.meta.RawField(_FIELD_Main_t_i64)
+	field := m.source.GetField(_FIELD_Main_t_i64)
 	m.fTI64 = field.GetInt64()
-	m.meta.Visit(_FIELD_Main_t_i64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_i64)
 	return m.fTI64
 }
 
 func (m *MainEX) SetTI64(v int64) {
 	m.fTI64 = v
-	m.meta.Visit(_FIELD_Main_t_i64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_i64)
 }
 
 func (m *MainEX) GetTS64() int64 {
-	if m.meta.IsVisited(_FIELD_Main_t_s64, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_t_s64) {
 		return m.fTS64
 	}
-	field := m.meta.RawField(_FIELD_Main_t_s64)
+	field := m.source.GetField(_FIELD_Main_t_s64)
 	m.fTS64 = field.GetInt64()
-	m.meta.Visit(_FIELD_Main_t_s64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_s64)
 	return m.fTS64
 }
 
 func (m *MainEX) SetTS64(v int64) {
 	m.fTS64 = v
-	m.meta.Visit(_FIELD_Main_t_s64, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_t_s64)
 }
 
 func (m *MainEX) GetIndex() map[string]int32 {
-	if m.meta.IsVisited(_FIELD_Main_index, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_index) {
 		return m.fIndex
 	}
-	field := m.meta.RawField(_FIELD_Main_index)
+	field := m.source.GetField(_FIELD_Main_index)
 	pack := field.GetMap()
 	m.fIndex = make(map[string]int32, int(pack.Size()))
 	for i := uint32(0); i < pack.Size(); i++ {
@@ -1144,7 +1147,7 @@ func (m *MainEX) GetIndex() map[string]int32 {
 		valField := pack.Value(i)
 		m.fIndex[key] = valField.GetInt32()
 	}
-	m.meta.Visit(_FIELD_Main_index, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_index)
 	return m.fIndex
 }
 
@@ -1157,14 +1160,14 @@ func (m *MainEX) SetIndex(v map[string]int32) {
 			m.fIndex[k] = one
 		}
 	}
-	m.meta.Visit(_FIELD_Main_index, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_index)
 }
 
 func (m *MainEX) GetObjects() map[int32]*SmallEX {
-	if m.meta.IsVisited(_FIELD_Main_objects, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_objects) {
 		return m.fObjects
 	}
-	field := m.meta.RawField(_FIELD_Main_objects)
+	field := m.source.GetField(_FIELD_Main_objects)
 	pack := field.GetMap()
 	m.fObjects = make(map[int32]*SmallEX, int(pack.Size()))
 	for i := uint32(0); i < pack.Size(); i++ {
@@ -1173,7 +1176,7 @@ func (m *MainEX) GetObjects() map[int32]*SmallEX {
 		valField := pack.Value(i)
 		m.fObjects[key] = TO_SmallEX(valField.GetObject())
 	}
-	m.meta.Visit(_FIELD_Main_objects, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_objects)
 	return m.fObjects
 }
 
@@ -1186,36 +1189,36 @@ func (m *MainEX) SetObjects(v map[int32]*SmallEX) {
 			m.fObjects[k] = one
 		}
 	}
-	m.meta.Visit(_FIELD_Main_objects, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_objects)
 }
 
 func (m *MainEX) GetMatrix() Vec2DEX {
-	if m.meta.IsVisited(_FIELD_Main_matrix, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_matrix) {
 		return m.fMatrix
 	}
-	field := m.meta.RawField(_FIELD_Main_matrix)
+	field := m.source.GetField(_FIELD_Main_matrix)
 	m.fMatrix = TO_Vec2DEX(field.GetObject())
-	m.meta.Visit(_FIELD_Main_matrix, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_matrix)
 	return m.fMatrix
 }
 
 func (m *MainEX) SetMatrix(v Vec2DEX) {
 	m.fMatrix = v
-	m.meta.Visit(_FIELD_Main_matrix, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_matrix)
 }
 
 func (m *MainEX) GetVector() []ArrMapEX {
-	if m.meta.IsVisited(_FIELD_Main_vector, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_vector) {
 		return m.fVector
 	}
-	field := m.meta.RawField(_FIELD_Main_vector)
+	field := m.source.GetField(_FIELD_Main_vector)
 	arr := field.GetArray()
 	m.fVector = make([]ArrMapEX, int(arr.Size()))
 	for i := uint32(0); i < arr.Size(); i++ {
 		elem := arr.Get(i)
 		m.fVector[i] = TO_ArrMapEX(elem.GetObject())
 	}
-	m.meta.Visit(_FIELD_Main_vector, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_vector)
 	return m.fVector
 }
 
@@ -1225,31 +1228,31 @@ func (m *MainEX) SetVector(v []ArrMapEX) {
 	} else {
 		m.fVector = append(m.fVector[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_vector, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_vector)
 }
 
 func (m *MainEX) GetArrays() ArrMapEX {
-	if m.meta.IsVisited(_FIELD_Main_arrays, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_arrays) {
 		return m.fArrays
 	}
-	field := m.meta.RawField(_FIELD_Main_arrays)
+	field := m.source.GetField(_FIELD_Main_arrays)
 	m.fArrays = TO_ArrMapEX(field.GetObject())
-	m.meta.Visit(_FIELD_Main_arrays, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_arrays)
 	return m.fArrays
 }
 
 func (m *MainEX) SetArrays(v ArrMapEX) {
 	m.fArrays = v
-	m.meta.Visit(_FIELD_Main_arrays, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_arrays)
 }
 
 func (m *MainEX) GetModev() []Mode {
-	if m.meta.IsVisited(_FIELD_Main_modev, _FIELD_TOTAL_Main) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Main_modev) {
 		return m.fModev
 	}
-	field := m.meta.RawField(_FIELD_Main_modev)
+	field := m.source.GetField(_FIELD_Main_modev)
 	m.fModev = append([]Mode(nil), protocache.CastEnumArray[Mode](field.GetEnumValueArray())...)
-	m.meta.Visit(_FIELD_Main_modev, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_modev)
 	return m.fModev
 }
 
@@ -1259,7 +1262,7 @@ func (m *MainEX) SetModev(v []Mode) {
 	} else {
 		m.fModev = append(m.fModev[:0], v...)
 	}
-	m.meta.Visit(_FIELD_Main_modev, _FIELD_TOTAL_Main)
+	protocache.Visit(m.visited[:], _FIELD_Main_modev)
 }
 
 func DETECT_CyclicA(data []byte) []byte {
@@ -1279,36 +1282,37 @@ func DETECT_CyclicA(data []byte) []byte {
 }
 
 type CyclicAEX struct {
-	meta    protocache.MessageEX
+	source  protocache.Message
+	visited [(_FIELD_TOTAL_CyclicA + 7) / 8]byte
 	fValue  int32
 	fCyclic *CyclicBEX
 }
 
 func TO_CyclicAEX(data []byte) *CyclicAEX {
 	out := &CyclicAEX{}
-	out.meta.Init(data)
+	out.source = protocache.AsMessage(data)
 	return out
 }
 
-func (m *CyclicAEX) HasSource() bool { return m.meta.HasSource() }
+func (m *CyclicAEX) HasSource() bool { return m.source.IsValid() }
 
 func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, 2)
-	if !m.meta.IsVisited(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA) {
-		field := m.meta.RawField(_FIELD_CyclicA_value)
-		parts[0] = field.RawWords()
+	parts := make([][]uint32, _FIELD_TOTAL_CyclicA)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_CyclicA_value) {
+		field := m.source.GetField(_FIELD_CyclicA_value)
+		parts[_FIELD_CyclicA_value] = field.RawWords()
 	} else if m.fValue != 0 {
-		parts[0], _ = protocache.EncodeScalar[int32](m.fValue)
+		parts[_FIELD_CyclicA_value], _ = protocache.EncodeScalar[int32](m.fValue)
 	}
-	if !m.meta.IsVisited(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA) {
-		field := m.meta.RawField(_FIELD_CyclicA_cyclic)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_CyclicA_cyclic) {
+		field := m.source.GetField(_FIELD_CyclicA_cyclic)
 		if obj := field.DetectObject(); obj != nil {
-			parts[1] = protocache.BytesToWords(DETECT_CyclicB(obj))
+			parts[_FIELD_CyclicA_cyclic] = protocache.BytesToWords(DETECT_CyclicB(obj))
 		} else {
-			parts[1] = field.RawWords()
+			parts[_FIELD_CyclicA_cyclic] = field.RawWords()
 		}
 	} else if m.fCyclic != nil {
 		part, err := ENCODE_CyclicB(m.fCyclic)
@@ -1316,7 +1320,7 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 			return nil, err
 		}
 		if len(part) > 1 {
-			parts[1] = part
+			parts[_FIELD_CyclicA_cyclic] = part
 		}
 	}
 	return protocache.EncodeMessageParts(parts)
@@ -1325,33 +1329,33 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 func (m *CyclicAEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_CyclicA(m)) }
 
 func (m *CyclicAEX) GetValue() int32 {
-	if m.meta.IsVisited(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_CyclicA_value) {
 		return m.fValue
 	}
-	field := m.meta.RawField(_FIELD_CyclicA_value)
+	field := m.source.GetField(_FIELD_CyclicA_value)
 	m.fValue = field.GetInt32()
-	m.meta.Visit(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA)
+	protocache.Visit(m.visited[:], _FIELD_CyclicA_value)
 	return m.fValue
 }
 
 func (m *CyclicAEX) SetValue(v int32) {
 	m.fValue = v
-	m.meta.Visit(_FIELD_CyclicA_value, _FIELD_TOTAL_CyclicA)
+	protocache.Visit(m.visited[:], _FIELD_CyclicA_value)
 }
 
 func (m *CyclicAEX) GetCyclic() *CyclicBEX {
-	if m.meta.IsVisited(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_CyclicA_cyclic) {
 		return m.fCyclic
 	}
-	field := m.meta.RawField(_FIELD_CyclicA_cyclic)
+	field := m.source.GetField(_FIELD_CyclicA_cyclic)
 	m.fCyclic = TO_CyclicBEX(field.GetObject())
-	m.meta.Visit(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA)
+	protocache.Visit(m.visited[:], _FIELD_CyclicA_cyclic)
 	return m.fCyclic
 }
 
 func (m *CyclicAEX) SetCyclic(v *CyclicBEX) {
 	m.fCyclic = v
-	m.meta.Visit(_FIELD_CyclicA_cyclic, _FIELD_TOTAL_CyclicA)
+	protocache.Visit(m.visited[:], _FIELD_CyclicA_cyclic)
 }
 
 func DETECT_CyclicB(data []byte) []byte {
@@ -1371,36 +1375,37 @@ func DETECT_CyclicB(data []byte) []byte {
 }
 
 type CyclicBEX struct {
-	meta    protocache.MessageEX
+	source  protocache.Message
+	visited [(_FIELD_TOTAL_CyclicB + 7) / 8]byte
 	fValue  int32
 	fCyclic *CyclicAEX
 }
 
 func TO_CyclicBEX(data []byte) *CyclicBEX {
 	out := &CyclicBEX{}
-	out.meta.Init(data)
+	out.source = protocache.AsMessage(data)
 	return out
 }
 
-func (m *CyclicBEX) HasSource() bool { return m.meta.HasSource() }
+func (m *CyclicBEX) HasSource() bool { return m.source.IsValid() }
 
 func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, 2)
-	if !m.meta.IsVisited(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB) {
-		field := m.meta.RawField(_FIELD_CyclicB_value)
-		parts[0] = field.RawWords()
+	parts := make([][]uint32, _FIELD_TOTAL_CyclicB)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_CyclicB_value) {
+		field := m.source.GetField(_FIELD_CyclicB_value)
+		parts[_FIELD_CyclicB_value] = field.RawWords()
 	} else if m.fValue != 0 {
-		parts[0], _ = protocache.EncodeScalar[int32](m.fValue)
+		parts[_FIELD_CyclicB_value], _ = protocache.EncodeScalar[int32](m.fValue)
 	}
-	if !m.meta.IsVisited(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB) {
-		field := m.meta.RawField(_FIELD_CyclicB_cyclic)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_CyclicB_cyclic) {
+		field := m.source.GetField(_FIELD_CyclicB_cyclic)
 		if obj := field.DetectObject(); obj != nil {
-			parts[1] = protocache.BytesToWords(DETECT_CyclicA(obj))
+			parts[_FIELD_CyclicB_cyclic] = protocache.BytesToWords(DETECT_CyclicA(obj))
 		} else {
-			parts[1] = field.RawWords()
+			parts[_FIELD_CyclicB_cyclic] = field.RawWords()
 		}
 	} else if m.fCyclic != nil {
 		part, err := ENCODE_CyclicA(m.fCyclic)
@@ -1408,7 +1413,7 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 			return nil, err
 		}
 		if len(part) > 1 {
-			parts[1] = part
+			parts[_FIELD_CyclicB_cyclic] = part
 		}
 	}
 	return protocache.EncodeMessageParts(parts)
@@ -1417,33 +1422,33 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 func (m *CyclicBEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_CyclicB(m)) }
 
 func (m *CyclicBEX) GetValue() int32 {
-	if m.meta.IsVisited(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_CyclicB_value) {
 		return m.fValue
 	}
-	field := m.meta.RawField(_FIELD_CyclicB_value)
+	field := m.source.GetField(_FIELD_CyclicB_value)
 	m.fValue = field.GetInt32()
-	m.meta.Visit(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB)
+	protocache.Visit(m.visited[:], _FIELD_CyclicB_value)
 	return m.fValue
 }
 
 func (m *CyclicBEX) SetValue(v int32) {
 	m.fValue = v
-	m.meta.Visit(_FIELD_CyclicB_value, _FIELD_TOTAL_CyclicB)
+	protocache.Visit(m.visited[:], _FIELD_CyclicB_value)
 }
 
 func (m *CyclicBEX) GetCyclic() *CyclicAEX {
-	if m.meta.IsVisited(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_CyclicB_cyclic) {
 		return m.fCyclic
 	}
-	field := m.meta.RawField(_FIELD_CyclicB_cyclic)
+	field := m.source.GetField(_FIELD_CyclicB_cyclic)
 	m.fCyclic = TO_CyclicAEX(field.GetObject())
-	m.meta.Visit(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB)
+	protocache.Visit(m.visited[:], _FIELD_CyclicB_cyclic)
 	return m.fCyclic
 }
 
 func (m *CyclicBEX) SetCyclic(v *CyclicAEX) {
 	m.fCyclic = v
-	m.meta.Visit(_FIELD_CyclicB_cyclic, _FIELD_TOTAL_CyclicB)
+	protocache.Visit(m.visited[:], _FIELD_CyclicB_cyclic)
 }
 
 func DETECT_Deprecated_Valid(data []byte) []byte {
@@ -1459,28 +1464,29 @@ func DETECT_Deprecated_Valid(data []byte) []byte {
 }
 
 type Deprecated_ValidEX struct {
-	meta protocache.MessageEX
-	fVal int32
+	source  protocache.Message
+	visited [(_FIELD_TOTAL_Deprecated_Valid + 7) / 8]byte
+	fVal    int32
 }
 
 func TO_Deprecated_ValidEX(data []byte) *Deprecated_ValidEX {
 	out := &Deprecated_ValidEX{}
-	out.meta.Init(data)
+	out.source = protocache.AsMessage(data)
 	return out
 }
 
-func (m *Deprecated_ValidEX) HasSource() bool { return m.meta.HasSource() }
+func (m *Deprecated_ValidEX) HasSource() bool { return m.source.IsValid() }
 
 func ENCODE_Deprecated_Valid(m *Deprecated_ValidEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, 1)
-	if !m.meta.IsVisited(_FIELD_Deprecated_Valid_val, _FIELD_TOTAL_Deprecated_Valid) {
-		field := m.meta.RawField(_FIELD_Deprecated_Valid_val)
-		parts[0] = field.RawWords()
+	parts := make([][]uint32, _FIELD_TOTAL_Deprecated_Valid)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Deprecated_Valid_val) {
+		field := m.source.GetField(_FIELD_Deprecated_Valid_val)
+		parts[_FIELD_Deprecated_Valid_val] = field.RawWords()
 	} else if m.fVal != 0 {
-		parts[0], _ = protocache.EncodeScalar[int32](m.fVal)
+		parts[_FIELD_Deprecated_Valid_val], _ = protocache.EncodeScalar[int32](m.fVal)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -1490,18 +1496,18 @@ func (m *Deprecated_ValidEX) Serialize() ([]byte, error) {
 }
 
 func (m *Deprecated_ValidEX) GetVal() int32 {
-	if m.meta.IsVisited(_FIELD_Deprecated_Valid_val, _FIELD_TOTAL_Deprecated_Valid) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Deprecated_Valid_val) {
 		return m.fVal
 	}
-	field := m.meta.RawField(_FIELD_Deprecated_Valid_val)
+	field := m.source.GetField(_FIELD_Deprecated_Valid_val)
 	m.fVal = field.GetInt32()
-	m.meta.Visit(_FIELD_Deprecated_Valid_val, _FIELD_TOTAL_Deprecated_Valid)
+	protocache.Visit(m.visited[:], _FIELD_Deprecated_Valid_val)
 	return m.fVal
 }
 
 func (m *Deprecated_ValidEX) SetVal(v int32) {
 	m.fVal = v
-	m.meta.Visit(_FIELD_Deprecated_Valid_val, _FIELD_TOTAL_Deprecated_Valid)
+	protocache.Visit(m.visited[:], _FIELD_Deprecated_Valid_val)
 }
 
 func DETECT_Deprecated(data []byte) []byte {
@@ -1517,28 +1523,29 @@ func DETECT_Deprecated(data []byte) []byte {
 }
 
 type DeprecatedEX struct {
-	meta  protocache.MessageEX
-	fJunk int32
+	source  protocache.Message
+	visited [(_FIELD_TOTAL_Deprecated + 7) / 8]byte
+	fJunk   int32
 }
 
 func TO_DeprecatedEX(data []byte) *DeprecatedEX {
 	out := &DeprecatedEX{}
-	out.meta.Init(data)
+	out.source = protocache.AsMessage(data)
 	return out
 }
 
-func (m *DeprecatedEX) HasSource() bool { return m.meta.HasSource() }
+func (m *DeprecatedEX) HasSource() bool { return m.source.IsValid() }
 
 func ENCODE_Deprecated(m *DeprecatedEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, 1)
-	if !m.meta.IsVisited(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated) {
-		field := m.meta.RawField(_FIELD_Deprecated_junk)
-		parts[0] = field.RawWords()
+	parts := make([][]uint32, _FIELD_TOTAL_Deprecated)
+	if !protocache.CheckVisited(m.visited[:], _FIELD_Deprecated_junk) {
+		field := m.source.GetField(_FIELD_Deprecated_junk)
+		parts[_FIELD_Deprecated_junk] = field.RawWords()
 	} else if m.fJunk != 0 {
-		parts[0], _ = protocache.EncodeScalar[int32](m.fJunk)
+		parts[_FIELD_Deprecated_junk], _ = protocache.EncodeScalar[int32](m.fJunk)
 	}
 	return protocache.EncodeMessageParts(parts)
 }
@@ -1548,18 +1555,18 @@ func (m *DeprecatedEX) Serialize() ([]byte, error) {
 }
 
 func (m *DeprecatedEX) GetJunk() int32 {
-	if m.meta.IsVisited(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated) {
+	if protocache.CheckVisited(m.visited[:], _FIELD_Deprecated_junk) {
 		return m.fJunk
 	}
-	field := m.meta.RawField(_FIELD_Deprecated_junk)
+	field := m.source.GetField(_FIELD_Deprecated_junk)
 	m.fJunk = field.GetInt32()
-	m.meta.Visit(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated)
+	protocache.Visit(m.visited[:], _FIELD_Deprecated_junk)
 	return m.fJunk
 }
 
 func (m *DeprecatedEX) SetJunk(v int32) {
 	m.fJunk = v
-	m.meta.Visit(_FIELD_Deprecated_junk, _FIELD_TOTAL_Deprecated)
+	protocache.Visit(m.visited[:], _FIELD_Deprecated_junk)
 }
 
 func DETECT_ModeDict_Value(data []byte) []byte {

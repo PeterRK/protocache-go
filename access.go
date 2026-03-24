@@ -748,3 +748,11 @@ func DetectMap(data []byte, detectKey func([]byte) []byte, detectValue func([]by
 	}
 	return m.core.data[:compactEnd]
 }
+
+func CheckVisited(bitmap []byte, id uint16) bool {
+	return (bitmap[id>>3] & byte(1<<(id&7))) != 0
+}
+
+func Visit(bitmap []byte, id uint16) {
+	bitmap[id>>3] |= byte(1 << (id & 7))
+}
