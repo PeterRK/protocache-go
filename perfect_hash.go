@@ -1,6 +1,7 @@
 package protocache
 
 import (
+	"math/bits"
 	"time"
 )
 
@@ -35,13 +36,8 @@ func setBit2on11(bitmap []byte, pos uint32, val byte) {
 }
 
 func countValidSlot(v uint64) uint32 {
-	v &= (v >> 1)
-	v = (v & 0x1111111111111111) + ((v >> 2) & 0x1111111111111111)
-	v = v + (v >> 4)
-	v = v + (v >> 8)
-	v = (v & 0xf0f0f0f0f0f0f0f) + ((v >> 16) & 0xf0f0f0f0f0f0f0f)
-	v = v + (v >> 32)
-	return 32 - (uint32(v) & 0xff)
+	v = (v & 0x5555555555555555) & (v >> 1)
+	return 32 - uint32(bits.OnesCount64(v))
 }
 
 func setBit(bitmap []byte, pos uint32) {

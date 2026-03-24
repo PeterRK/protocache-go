@@ -96,7 +96,6 @@ func (m *SmallEX) GetFlag() bool {
 	if protocache.CheckVisited(m.visited[:], _FIELD_Small_flag) {
 		return m.fFlag
 	}
-
 	field := m.source.GetField(_FIELD_Small_flag)
 	m.fFlag = field.GetBool()
 	protocache.Visit(m.visited[:], _FIELD_Small_flag)
