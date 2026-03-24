@@ -23,20 +23,14 @@ func Compress(src []byte) []byte {
 		cnt := uint8(1)
 		ch := src[k]
 		k++
-		switch ch {
-		case 0:
-			for k < len(src) && cnt < 4 && src[k] == 0 {
+		x := int8(ch)
+		if x == (x >> 1) {
+			for k < len(src) && cnt < 4 && src[k] == ch {
 				k++
 				cnt++
 			}
-			return 0x8 | (cnt - 1)
-		case 0xff:
-			for k < len(src) && cnt < 4 && src[k] == 0xff {
-				k++
-				cnt++
-			}
-			return 0xC | (cnt - 1)
-		default:
+			return 0x8 | (ch & 0x4) | (cnt - 1)
+		} else {
 			for k < len(src) && cnt < 7 && src[k] != 0 && src[k] != 0xff {
 				k++
 				cnt++
@@ -96,7 +90,7 @@ func Decompress(src []byte) ([]byte, error) {
 	if !decodeLen() {
 		return nil, errors.New("broken header")
 	}
-	out := make([]byte, size)
+	out := make([]byte, size, size+7) // extra space for write
 
 	s := uintptr(unsafe.Pointer(&src[k]))
 	end := s + uintptr(len(src)-k)
@@ -109,31 +103,14 @@ func Decompress(src []byte) ([]byte, error) {
 			if dest+cnt > tail {
 				return false
 			}
-			if (mark & 4) != 0 {
-				if dest+4 <= tail {
-					*(*uint32)(unsafe.Pointer(dest)) = 0xffffffff
-				} else {
-					for i := uintptr(0); i < cnt; i++ {
-						*(*byte)(unsafe.Pointer(dest + i)) = 0xff
-					}
-				}
-			} else {
-				if dest+4 <= tail {
-					*(*uint32)(unsafe.Pointer(dest)) = 0
-				} else {
-					for i := uintptr(0); i < cnt; i++ {
-						*(*byte)(unsafe.Pointer(dest + i)) = 0
-					}
-				}
-			}
+			*(*uint32)(unsafe.Pointer(dest)) = uint32(0) - uint32((mark>>2)&1)
 			dest += cnt
-
-		} else {
-			l := uintptr(mark & 7)
+		} else if mark != 0 {
+			l := uintptr(mark)
 			if s+l > end || dest+l > tail {
 				return false
 			}
-			if s+8 <= end && dest+8 <= tail {
+			if s+8 <= end {
 				*(*uint64)(unsafe.Pointer(dest)) = *(*uint64)(unsafe.Pointer(s))
 			} else {
 				for i := uintptr(0); i < l; i++ {
@@ -142,7 +119,6 @@ func Decompress(src []byte) ([]byte, error) {
 			}
 			s += l
 			dest += l
-
 		}
 		return true
 	}

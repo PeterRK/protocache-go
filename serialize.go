@@ -76,24 +76,27 @@ func EncodeObjectArray[T any](vec []T, encoder func(T) ([]uint32, error)) ([]uin
 	})
 }
 
+type mapParts struct {
+	key []uint32
+	val []uint32
+}
+
 func collectMapParts[K comparable, V any](x map[K]V,
 	keyEnc func(K) ([]uint32, error),
-	valEnc func(V) ([]uint32, error)) (keys, vals [][]uint32, err error) {
-	keys = make([][]uint32, 0, len(x))
-	vals = make([][]uint32, 0, len(x))
+	valEnc func(V) ([]uint32, error)) ([]mapParts, error) {
+	parts := make([]mapParts, 0, len(x))
 	for k, v := range x {
 		keyPart, err := keyEnc(k)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		valPart, err := valEnc(v)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		keys = append(keys, keyPart)
-		vals = append(vals, valPart)
+		parts = append(parts, mapParts{key: keyPart, val: valPart})
 	}
-	return keys, vals, nil
+	return parts, nil
 }
 
 func EncodeScalarMap[K scalar, V any](x map[K]V,
@@ -101,11 +104,11 @@ func EncodeScalarMap[K scalar, V any](x map[K]V,
 	if len(x) == 0 {
 		return []uint32{5 << 28}, nil
 	}
-	keys, vals, err := collectMapParts(x, keyEnc, valEnc)
+	parts, err := collectMapParts(x, keyEnc, valEnc)
 	if err != nil {
 		return nil, err
 	}
-	return encodeMapParts(keys, vals, false)
+	return encodeMapParts(parts, false)
 }
 
 func EncodeStringMap[V any](x map[string]V,
@@ -113,11 +116,11 @@ func EncodeStringMap[V any](x map[string]V,
 	if len(x) == 0 {
 		return []uint32{5 << 28}, nil
 	}
-	keys, vals, err := collectMapParts(x, EncodeString, encoder)
+	parts, err := collectMapParts(x, EncodeString, encoder)
 	if err != nil {
 		return nil, err
 	}
-	return encodeMapParts(keys, vals, true)
+	return encodeMapParts(parts, true)
 }
 
 func BytesToWords(data []byte) []uint32 {
@@ -425,6 +428,38 @@ func bestArraySize(parts [][]uint32) (size, width int) {
 	return sizes[mode], mode + 1
 }
 
+func bestKvArraySize(parts []mapParts, order []int, key bool) (size, width int) {
+	sizes := [3]int{0, 0, 0}
+	for _, idx := range order {
+		one := parts[idx].val
+		if key {
+			one = parts[idx].key
+		}
+		sizes[0] += 1
+		sizes[1] += 2
+		sizes[2] += 3
+		if len(one) <= 1 {
+			continue
+		}
+		sizes[0] += len(one)
+		if len(one) <= 2 {
+			continue
+		}
+		sizes[1] += len(one)
+		if len(one) <= 3 {
+			continue
+		}
+		sizes[2] += len(one)
+	}
+	mode := 0
+	for i := 1; i < 3; i++ {
+		if sizes[i] < sizes[mode] {
+			mode = i
+		}
+	}
+	return sizes[mode], mode + 1
+}
+
 func encodeArray(size int, get func(i int) ([]uint32, error)) ([]uint32, error) {
 	parts := make([][]uint32, size)
 	var err error
@@ -520,8 +555,8 @@ func encodeList(field protoreflect.FieldDescriptor, list protoreflect.List) ([]u
 }
 
 type arrayReader struct {
-	keys [][]uint32
-	curr int
+	parts []mapParts
+	curr  int
 }
 
 func (r *arrayReader) Reset() {
@@ -529,13 +564,13 @@ func (r *arrayReader) Reset() {
 }
 
 func (r *arrayReader) Total() int {
-	return len(r.keys)
+	return len(r.parts)
 }
 
 type scalarReader struct{ arrayReader }
 
 func (r *scalarReader) Next() []byte {
-	key := castToBytes(r.keys[r.curr])
+	key := castToBytes(r.parts[r.curr].key)
 	r.curr++
 	return key
 }
@@ -543,7 +578,7 @@ func (r *scalarReader) Next() []byte {
 type stringReader struct{ arrayReader }
 
 func (r *stringReader) Next() []byte {
-	key := castToBytes(r.keys[r.curr])
+	key := castToBytes(r.parts[r.curr].key)
 	r.curr++
 	return extractBytes(key)
 }
@@ -552,66 +587,56 @@ func encodeMap(field protoreflect.FieldDescriptor, pack protoreflect.Map) ([]uin
 	kField := field.MapKey()
 	vField := field.MapValue()
 	size := pack.Len()
-	keys := make([][]uint32, 0, size)
-	vals := make([][]uint32, 0, size)
+	parts := make([]mapParts, 0, size)
 
 	var err error
 	pack.Range(func(key protoreflect.MapKey, val protoreflect.Value) bool {
-		var tmp []uint32
-		tmp, err = encodeField(kField, key.Value())
+		entry := mapParts{}
+		entry.key, err = encodeField(kField, key.Value())
 		if err != nil {
 			return false
 		}
-		keys = append(keys, tmp)
-		tmp, err = encodeField(vField, val)
+		entry.val, err = encodeField(vField, val)
 		if err != nil {
 			return false
 		}
-		vals = append(vals, tmp)
+		parts = append(parts, entry)
 		return true
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return encodeMapParts(keys, vals, kField.Kind() == protoreflect.StringKind)
+	return encodeMapParts(parts, kField.Kind() == protoreflect.StringKind)
 }
 
-func encodeMapParts(keys [][]uint32, vals [][]uint32, stringKey bool) ([]uint32, error) {
-	size := len(keys)
-	if size != len(vals) {
-		return nil, errors.New("map key/value size mismatch")
-	}
-
+func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
+	size := len(parts)
 	var index perfectHashTable
+	order := make([]int, size)
 	build := func(src hashKeySource) {
 		index = buildPerfectHashTable(src)
 		if !index.isValid() {
 			return
 		}
-		tKeys, tVals := keys, vals
-		keys = make([][]uint32, size)
-		vals = make([][]uint32, size)
 		src.Reset()
 		for i := 0; i < size; i++ {
-			pos := index.lookup(src.Next())
-			keys[pos] = tKeys[i]
-			vals[pos] = tVals[i]
+			order[index.lookup(src.Next())] = i
 		}
 	}
 
 	if stringKey {
-		build(&stringReader{arrayReader: arrayReader{keys: keys}})
+		build(&stringReader{arrayReader: arrayReader{parts: parts}})
 	} else {
-		build(&scalarReader{arrayReader: arrayReader{keys: keys}})
+		build(&scalarReader{arrayReader: arrayReader{parts: parts}})
 	}
 	if !index.isValid() {
 		return nil, errors.New("fail to build map")
 	}
 
 	n0 := int(calcWordSize(uint32(len(index.encodedBytes()))))
-	n1, m1 := bestArraySize(keys)
-	n2, m2 := bestArraySize(vals)
+	n1, m1 := bestKvArraySize(parts, order, true)
+	n2, m2 := bestKvArraySize(parts, order, false)
 
 	n := n0 + n1 + n2
 	if n >= (1 << 30) {
@@ -623,25 +648,25 @@ func encodeMapParts(keys [][]uint32, vals [][]uint32, stringKey bool) ([]uint32,
 	out[0] |= uint32((m1 << 30) | (m2 << 28))
 
 	off := n0
-	for i := 0; i < size; i++ {
-		if key := keys[i]; len(key) <= m1 {
+	for _, idx := range order {
+		if key := parts[idx].key; len(key) <= m1 {
 			copy(out[off:], key)
 		}
 		off += m1
-		if val := vals[i]; len(val) <= m2 {
+		if val := parts[idx].val; len(val) <= m2 {
 			copy(out[off:], val)
 		}
 		off += m2
 	}
 
 	off = n0
-	for i := 0; i < size; i++ {
-		if key := keys[i]; len(key) > m1 {
+	for _, idx := range order {
+		if key := parts[idx].key; len(key) > m1 {
 			out[off] = calcOffset(uint32(len(out) - off))
 			out = append(out, key...)
 		}
 		off += m1
-		if val := vals[i]; len(val) > m2 {
+		if val := parts[idx].val; len(val) > m2 {
 			out[off] = calcOffset(uint32(len(out) - off))
 			out = append(out, val...)
 		}
