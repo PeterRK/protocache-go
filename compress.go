@@ -23,8 +23,7 @@ func Compress(src []byte) []byte {
 		cnt := uint8(1)
 		ch := src[k]
 		k++
-		x := int8(ch)
-		if x == (x >> 1) {
+		if int8(ch) == (int8(ch) >> 1) {
 			for k < len(src) && cnt < 4 && src[k] == ch {
 				k++
 				cnt++
