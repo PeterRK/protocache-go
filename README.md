@@ -6,9 +6,9 @@ Alternative flat binary format for [Protobuf schema](https://protobuf.dev/progra
 |:-------|----:|----:|----:|----:|
 | Data Size | 574B | 574B | 780B | 1296B |
 | Compressed Size | 566B | 566B | 571B | 856B |
-| Decompress | 434ns | 434ns | 820ns | 1634ns |
-| Decode + Traverse | 5998ns | 3359ns | 586ns | 1129ns |
-| Decode + Traverse(reflection) | 12480ns | 10294ns | 1260ns | No Go API |
+| Decompress | 394ns | 394ns | 653ns | 1284ns |
+| Decode + Traverse | 7933ns | 4211ns | 803ns | 2286ns |
+| Decode + Traverse(reflection) | 19329ns | 14743ns | 1675ns | No Go API |
 
 See detail in [C++ version](https://github.com/peterrk/protocache).
 

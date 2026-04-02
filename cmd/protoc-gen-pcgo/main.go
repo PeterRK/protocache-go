@@ -1674,7 +1674,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 		g.P("	if m == nil {")
 		g.P("		return []uint32{0}, nil")
 		g.P("	}")
-		g.P("	parts := make([][]uint32, _FIELD_TOTAL_", one.GoIdent.GoName, ")")
+		g.P("	var parts [_FIELD_TOTAL_", one.GoIdent.GoName, "][]uint32")
 		for _, field := range fields {
 			fieldConst := "_FIELD_" + one.GoIdent.GoName + "_" + string(field.Desc.Name())
 			targetPart := "parts[" + fieldConst + "]"
@@ -1756,7 +1756,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 				}
 			}
 		}
-		g.P("	return protocache.EncodeMessageParts(parts)")
+		g.P("	return protocache.EncodeMessageParts(parts[:])")
 		g.P("}")
 		g.P()
 		g.P("func (m *", one.GoIdent.GoName, "EX) Serialize() ([]byte, error) { return protocache.SerializeWords(", exEncodeFuncName(one.Desc), "(m)) }")

@@ -1,6 +1,6 @@
 module github.com/peterrk/protocache-go
 
-go 1.20
+go 1.22
 
 require (
 	github.com/peterrk/slices v1.0.0

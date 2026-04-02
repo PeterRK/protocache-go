@@ -45,23 +45,121 @@ func EncodeScalarVector[T scalar](vec []T) ([]uint32, error) {
 }
 
 func EncodeBoolArray(vec []bool) ([]uint32, error) {
-	tmp := make([]byte, len(vec))
+	if len(vec) >= (1 << 30) {
+		return nil, errors.New("too long string")
+	}
+	var tmp [5]byte
+	header := tmp[:0]
+	mark := uint32(len(vec) << 2)
+	for ; (mark & 0xffffff80) != 0; mark >>= 7 {
+		header = append(header, byte(0x80|(mark&0x7f)))
+	}
+	header = append(header, byte(mark))
+	out := make([]uint32, calcWordSize(uint32(len(header)+len(vec))))
+	buf := castToBytes(out)
+	copy(buf[:len(header)], header)
 	for i, one := range vec {
 		if one {
-			tmp[i] = 1
+			buf[len(header)+i] = 1
 		}
 	}
-	return encodeBytes(tmp)
+	return out, nil
 }
 
 func EncodeEnumArray[T Enum](vec []T) ([]uint32, error) {
 	return EncodeScalarVector(upCast[T, int32](vec))
 }
 
+func encodedBytesWordSize(size int) (int, error) {
+	if size >= (1 << 30) {
+		return 0, errors.New("too long string")
+	}
+	header := 1
+	for mark := uint32(size << 2); (mark & 0xffffff80) != 0; mark >>= 7 {
+		header++
+	}
+	return int(calcWordSize(uint32(header + size))), nil
+}
+
+func writeEncodedBytes(dst []uint32, data []byte) int {
+	var tmp [5]byte
+	header := tmp[:0]
+	mark := uint32(len(data) << 2)
+	for ; (mark & 0xffffff80) != 0; mark >>= 7 {
+		header = append(header, byte(0x80|(mark&0x7f)))
+	}
+	header = append(header, byte(mark))
+	words := int(calcWordSize(uint32(len(header) + len(data))))
+	buf := castToBytes(dst[:words])
+	copy(buf[:len(header)], header)
+	copy(buf[len(header):], data)
+	return words
+}
+
 func EncodeStringArray(vec []string) ([]uint32, error) {
-	return encodeArray(len(vec), func(i int) ([]uint32, error) {
-		return encodeString(vec[i])
-	})
+	var stackLens [8]int
+	lens := stackLens[:0]
+	if len(vec) <= len(stackLens) {
+		lens = stackLens[:len(vec)]
+	} else {
+		lens = make([]int, len(vec))
+	}
+	sizes := [3]int{0, 0, 0}
+	for i := 0; i < len(vec); i++ {
+		words, err := encodedBytesWordSize(len(vec[i]))
+		if err != nil {
+			return nil, err
+		}
+		lens[i] = words
+		sizes[0] += 1
+		sizes[1] += 2
+		sizes[2] += 3
+		if words > 1 {
+			sizes[0] += words
+			if words > 2 {
+				sizes[1] += words
+				if words > 3 {
+					sizes[2] += words
+				}
+			}
+		}
+	}
+	mode := 0
+	for i := 1; i < 3; i++ {
+		if sizes[i] < sizes[mode] {
+			mode = i
+		}
+	}
+	n, m := sizes[mode], mode+1
+	n += 1
+	if n >= (1 << 30) {
+		return nil, errors.New("array size overflow")
+	}
+	out := make([]uint32, 1+len(vec)*m, n)
+	out[0] = uint32((len(vec) << 2) | m)
+	off := 1
+	for i, str := range vec {
+		words := lens[i]
+		if words <= m {
+			writeEncodedBytes(out[off:], castStrToBytes(str))
+		}
+		off += m
+	}
+	off = 1
+	for i, str := range vec {
+		words := lens[i]
+		if words > m {
+			out[off] = calcOffset(uint32(len(out) - off))
+			tail := len(out)
+			out = out[:tail+words]
+			writeEncodedBytes(out[tail:], castStrToBytes(str))
+		}
+		off += m
+	}
+	if n != len(out) {
+		panic("size mismatch")
+	}
+	return out, nil
 }
 
 func EncodeBytesArray(vec [][]byte) ([]uint32, error) {
@@ -154,6 +252,35 @@ func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 	if originFields.Len() <= 0 {
 		return nil, fmt.Errorf("no fields in %s", descriptor.FullName())
 	}
+	if originFields.Len() == 1 {
+		field := originFields.Get(0)
+		if field == nil || field.Number() <= 0 {
+			return nil, fmt.Errorf("illegal field in %s", descriptor.FullName())
+		}
+		if field.Number() == 1 && field.Name() == "_" {
+			if !message.Has(field) {
+				if field.IsMap() {
+					return []uint32{5 << 28}, nil
+				}
+				return []uint32{1}, nil
+			}
+			value := message.Get(field)
+			if field.IsMap() {
+				return encodeMap(field, value.Map())
+			}
+			if field.IsList() {
+				return encodeList(field, value.List())
+			}
+			part, err := encodeField(field, value)
+			if err != nil {
+				return nil, err
+			}
+			if len(part) == 0 || (len(part) == 1 && field.Kind() == protoreflect.MessageKind) {
+				return []uint32{1}, nil
+			}
+			return part, nil
+		}
+	}
 	maxId := 1
 	for i := 0; i < originFields.Len(); i++ {
 		field := originFields.Get(i)
@@ -170,45 +297,33 @@ func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 		return nil, fmt.Errorf("message %s is too sparse", descriptor.FullName())
 	}
 
-	fields := make([]protoreflect.FieldDescriptor, maxId)
+	var stackParts [8][]uint32
+	parts := stackParts[:0]
+	if maxId <= len(stackParts) {
+		parts = stackParts[:maxId]
+	} else {
+		parts = make([][]uint32, maxId)
+	}
 	for i := 0; i < originFields.Len(); i++ {
 		field := originFields.Get(i)
-		j := field.Number() - 1
-		if fields[j] != nil {
-			return nil, fmt.Errorf("duplicate field id %d in %s", field.Number(), descriptor.FullName())
-		}
-		fields[j] = field
-	}
-	parts := make([][]uint32, len(fields))
-	for i, field := range fields {
-		if field == nil || !message.Has(field) {
+		if !message.Has(field) {
 			continue
 		}
 		var err error
+		j := int(field.Number()) - 1
 		if field.IsMap() {
-			parts[i], err = encodeMap(field, message.Get(field).Map())
+			parts[j], err = encodeMap(field, message.Get(field).Map())
 		} else if field.IsList() {
-			parts[i], err = encodeList(field, message.Get(field).List())
+			parts[j], err = encodeList(field, message.Get(field).List())
 		} else {
-			parts[i], err = encodeField(field, message.Get(field))
-			if len(parts[i]) == 1 && field.Kind() == protoreflect.MessageKind {
-				parts[i] = nil
+			parts[j], err = encodeField(field, message.Get(field))
+			if len(parts[j]) == 1 && field.Kind() == protoreflect.MessageKind {
+				parts[j] = nil
 			}
 		}
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if len(fields) == 1 && fields[0].Name() == "_" {
-		if len(parts[0]) == 0 {
-			if fields[0].IsMap() {
-				parts[0] = []uint32{5 << 28}
-			} else {
-				parts[0] = []uint32{1}
-			}
-		}
-		return parts[0], nil
 	}
 	return encodeMessageParts(parts)
 }
@@ -220,7 +335,48 @@ func encodeMessageParts(parts [][]uint32) ([]uint32, error) {
 	if len(parts) == 0 {
 		return []uint32{0}, nil
 	}
-
+	if len(parts) <= 12 {
+		head := uint32(0)
+		size := uint32(1)
+		for i, one := range parts {
+			if len(one) < 4 {
+				head |= uint32(len(one)) << (8 + i*2)
+				size += uint32(len(one))
+			} else {
+				head |= 1 << (8 + i*2)
+				size += 1 + uint32(len(one))
+			}
+		}
+		if size >= (1 << 30) {
+			return nil, errors.New("message size overflow")
+		}
+		out := make([]uint32, 1, size)
+		out[0] = head
+		off := uint32(len(out))
+		for _, one := range parts {
+			if len(one) == 0 {
+				continue
+			}
+			if len(one) < 4 {
+				out = append(out, one...)
+			} else {
+				out = append(out, 0)
+			}
+		}
+		for _, one := range parts {
+			if len(one) < 4 {
+				off += uint32(len(one))
+			} else {
+				out[off] = calcOffset(uint32(len(out)) - off)
+				out = append(out, one...)
+				off++
+			}
+		}
+		if size != uint32(len(out)) {
+			panic("size mismatch")
+		}
+		return out, nil
+	}
 	section := (uint32(len(parts)) + 12) / 25
 	size := 1 + section*2
 
@@ -428,7 +584,7 @@ func bestArraySize(parts [][]uint32) (size, width int) {
 	return sizes[mode], mode + 1
 }
 
-func bestKvArraySize(parts []mapParts, order []int, key bool) (size, width int) {
+func bestKvArraySize(parts []mapParts, order []uint32, key bool) (size, width int) {
 	sizes := [3]int{0, 0, 0}
 	for _, idx := range order {
 		one := parts[idx].val
@@ -461,15 +617,44 @@ func bestKvArraySize(parts []mapParts, order []int, key bool) (size, width int) 
 }
 
 func encodeArray(size int, get func(i int) ([]uint32, error)) ([]uint32, error) {
-	parts := make([][]uint32, size)
+	var stackParts [8][]uint32
+	parts := stackParts[:0]
+	if size <= len(stackParts) {
+		parts = stackParts[:size]
+	} else {
+		parts = make([][]uint32, size)
+	}
+	sizes := [3]int{0, 0, 0}
 	var err error
 	for i := 0; i < size; i++ {
 		parts[i], err = get(i)
 		if err != nil {
 			return nil, err
 		}
+		one := parts[i]
+		sizes[0] += 1
+		sizes[1] += 2
+		sizes[2] += 3
+		if len(one) <= 1 {
+			continue
+		}
+		sizes[0] += len(one)
+		if len(one) <= 2 {
+			continue
+		}
+		sizes[1] += len(one)
+		if len(one) <= 3 {
+			continue
+		}
+		sizes[2] += len(one)
 	}
-	n, m := bestArraySize(parts)
+	mode := 0
+	for i := 1; i < 3; i++ {
+		if sizes[i] < sizes[mode] {
+			mode = i
+		}
+	}
+	n, m := sizes[mode], mode+1
 	n += 1
 	if n >= (1 << 30) {
 		return nil, errors.New("array size overflow")
@@ -537,13 +722,26 @@ func encodeList(field protoreflect.FieldDescriptor, list protoreflect.List) ([]u
 			return int32(list.Get(i).Int())
 		})
 	case protoreflect.BoolKind:
-		tmp := make([]byte, list.Len())
-		for i := 0; i < len(tmp); i++ {
+		size := list.Len()
+		if size >= (1 << 30) {
+			return nil, errors.New("too long string")
+		}
+		var tmp [5]byte
+		header := tmp[:0]
+		mark := uint32(size << 2)
+		for ; (mark & 0xffffff80) != 0; mark >>= 7 {
+			header = append(header, byte(0x80|(mark&0x7f)))
+		}
+		header = append(header, byte(mark))
+		out := make([]uint32, calcWordSize(uint32(len(header)+size)))
+		buf := castToBytes(out)
+		copy(buf[:len(header)], header)
+		for i := 0; i < size; i++ {
 			if list.Get(i).Bool() {
-				tmp[i] = 1
+				buf[len(header)+i] = 1
 			}
 		}
-		return encodeBytes(tmp)
+		return out, nil
 	case protoreflect.EnumKind:
 		return encodeScalarArray(list.Len(), func(i int) int32 {
 			return int32(list.Get(i).Enum())
@@ -587,20 +785,26 @@ func encodeMap(field protoreflect.FieldDescriptor, pack protoreflect.Map) ([]uin
 	kField := field.MapKey()
 	vField := field.MapValue()
 	size := pack.Len()
-	parts := make([]mapParts, 0, size)
+	var stackParts [8]mapParts
+	parts := stackParts[:0]
+	if size <= len(stackParts) {
+		parts = stackParts[:size]
+	} else {
+		parts = make([]mapParts, size)
+	}
+	curr := 0
 
 	var err error
 	pack.Range(func(key protoreflect.MapKey, val protoreflect.Value) bool {
-		entry := mapParts{}
-		entry.key, err = encodeField(kField, key.Value())
+		parts[curr].key, err = encodeField(kField, key.Value())
 		if err != nil {
 			return false
 		}
-		entry.val, err = encodeField(vField, val)
+		parts[curr].val, err = encodeField(vField, val)
 		if err != nil {
 			return false
 		}
-		parts = append(parts, entry)
+		curr++
 		return true
 	})
 	if err != nil {
@@ -613,7 +817,13 @@ func encodeMap(field protoreflect.FieldDescriptor, pack protoreflect.Map) ([]uin
 func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
 	size := len(parts)
 	var index perfectHashTable
-	order := make([]int, size)
+	var stackOrder [8]uint32
+	order := stackOrder[:0]
+	if size <= len(stackOrder) {
+		order = stackOrder[:size]
+	} else {
+		order = make([]uint32, size)
+	}
 	build := func(src hashKeySource) {
 		index = buildPerfectHashTable(src)
 		if !index.isValid() {
@@ -621,7 +831,7 @@ func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
 		}
 		src.Reset()
 		for i := 0; i < size; i++ {
-			order[index.lookup(src.Next())] = i
+			order[index.lookup(src.Next())] = uint32(i)
 		}
 	}
 
@@ -634,7 +844,8 @@ func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
 		return nil, errors.New("fail to build map")
 	}
 
-	n0 := int(calcWordSize(uint32(len(index.encodedBytes()))))
+	encoded := index.encodedBytes()
+	n0 := int(calcWordSize(uint32(len(encoded))))
 	n1, m1 := bestKvArraySize(parts, order, true)
 	n2, m2 := bestKvArraySize(parts, order, false)
 
@@ -644,7 +855,7 @@ func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
 	}
 
 	out := make([]uint32, n0+size*(m1+m2), n)
-	copy(castToBytes(out), index.encodedBytes())
+	copy(castToBytes(out), encoded)
 	out[0] |= uint32((m1 << 30) | (m2 << 28))
 
 	off := n0

@@ -39,7 +39,7 @@ func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, _FIELD_TOTAL_Small)
+	var parts [_FIELD_TOTAL_Small][]uint32
 	if !protocache.CheckVisited(m.visited[:], _FIELD_Small_i32) {
 		field := m.source.GetField(_FIELD_Small_i32)
 		parts[_FIELD_Small_i32] = field.RawWords()
@@ -72,7 +72,7 @@ func ENCODE_Small(m *SmallEX) ([]uint32, error) {
 	} else if m.fJunk != 0 {
 		parts[_FIELD_Small_junk], _ = protocache.EncodeScalar[int64](m.fJunk)
 	}
-	return protocache.EncodeMessageParts(parts)
+	return protocache.EncodeMessageParts(parts[:])
 }
 
 func (m *SmallEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_Small(m)) }
@@ -364,7 +364,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, _FIELD_TOTAL_Main)
+	var parts [_FIELD_TOTAL_Main][]uint32
 	if !protocache.CheckVisited(m.visited[:], _FIELD_Main_i32) {
 		field := m.source.GetField(_FIELD_Main_i32)
 		parts[_FIELD_Main_i32] = field.RawWords()
@@ -695,7 +695,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		}
 		parts[_FIELD_Main_modev] = part
 	}
-	return protocache.EncodeMessageParts(parts)
+	return protocache.EncodeMessageParts(parts[:])
 }
 
 func (m *MainEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_Main(m)) }
@@ -1299,7 +1299,7 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, _FIELD_TOTAL_CyclicA)
+	var parts [_FIELD_TOTAL_CyclicA][]uint32
 	if !protocache.CheckVisited(m.visited[:], _FIELD_CyclicA_value) {
 		field := m.source.GetField(_FIELD_CyclicA_value)
 		parts[_FIELD_CyclicA_value] = field.RawWords()
@@ -1322,7 +1322,7 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 			parts[_FIELD_CyclicA_cyclic] = part
 		}
 	}
-	return protocache.EncodeMessageParts(parts)
+	return protocache.EncodeMessageParts(parts[:])
 }
 
 func (m *CyclicAEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_CyclicA(m)) }
@@ -1392,7 +1392,7 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, _FIELD_TOTAL_CyclicB)
+	var parts [_FIELD_TOTAL_CyclicB][]uint32
 	if !protocache.CheckVisited(m.visited[:], _FIELD_CyclicB_value) {
 		field := m.source.GetField(_FIELD_CyclicB_value)
 		parts[_FIELD_CyclicB_value] = field.RawWords()
@@ -1415,7 +1415,7 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 			parts[_FIELD_CyclicB_cyclic] = part
 		}
 	}
-	return protocache.EncodeMessageParts(parts)
+	return protocache.EncodeMessageParts(parts[:])
 }
 
 func (m *CyclicBEX) Serialize() ([]byte, error) { return protocache.SerializeWords(ENCODE_CyclicB(m)) }
@@ -1480,14 +1480,14 @@ func ENCODE_Deprecated_Valid(m *Deprecated_ValidEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, _FIELD_TOTAL_Deprecated_Valid)
+	var parts [_FIELD_TOTAL_Deprecated_Valid][]uint32
 	if !protocache.CheckVisited(m.visited[:], _FIELD_Deprecated_Valid_val) {
 		field := m.source.GetField(_FIELD_Deprecated_Valid_val)
 		parts[_FIELD_Deprecated_Valid_val] = field.RawWords()
 	} else if m.fVal != 0 {
 		parts[_FIELD_Deprecated_Valid_val], _ = protocache.EncodeScalar[int32](m.fVal)
 	}
-	return protocache.EncodeMessageParts(parts)
+	return protocache.EncodeMessageParts(parts[:])
 }
 
 func (m *Deprecated_ValidEX) Serialize() ([]byte, error) {
@@ -1539,14 +1539,14 @@ func ENCODE_Deprecated(m *DeprecatedEX) ([]uint32, error) {
 	if m == nil {
 		return []uint32{0}, nil
 	}
-	parts := make([][]uint32, _FIELD_TOTAL_Deprecated)
+	var parts [_FIELD_TOTAL_Deprecated][]uint32
 	if !protocache.CheckVisited(m.visited[:], _FIELD_Deprecated_junk) {
 		field := m.source.GetField(_FIELD_Deprecated_junk)
 		parts[_FIELD_Deprecated_junk] = field.RawWords()
 	} else if m.fJunk != 0 {
 		parts[_FIELD_Deprecated_junk], _ = protocache.EncodeScalar[int32](m.fJunk)
 	}
-	return protocache.EncodeMessageParts(parts)
+	return protocache.EncodeMessageParts(parts[:])
 }
 
 func (m *DeprecatedEX) Serialize() ([]byte, error) {

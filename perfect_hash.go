@@ -2,7 +2,7 @@ package protocache
 
 import (
 	"math/bits"
-	"time"
+	"math/rand/v2"
 )
 
 func clearAll(data []byte) {
@@ -276,19 +276,35 @@ func build[T unsigned](src hashKeySource) []byte {
 
 	slotCnt := section * 3
 
-	g := graph[T]{
-		edges: make([][3]vertex[T], size),
-		nodes: make([]T, slotCnt),
+	var stackEdges [8][3]vertex[T]
+	var stackNodes [30]T
+	g := graph[T]{}
+	if int(size) <= len(stackEdges) && int(slotCnt) <= len(stackNodes) {
+		g.edges = stackEdges[:size]
+		g.nodes = stackNodes[:slotCnt]
+	} else {
+		g.edges = make([][3]vertex[T], size)
+		g.nodes = make([]T, slotCnt)
 	}
-	free := make([]T, 0, size)
-	book := make([]byte, (slotCnt+7)/8)
+	var stackFree [8]T
+	free := stackFree[:0]
+	if int(size) > len(stackFree) {
+		free = make([]T, 0, size)
+	}
+	var stackBook [5]byte
+	book := stackBook[:0]
+	if n := int((slotCnt + 7) / 8); n <= len(stackBook) {
+		book = stackBook[:n]
+	} else {
+		book = make([]byte, n)
+	}
 
 	chance := 16
 	if sizeof[T]() == 1 {
 		chance = 40
 	}
 	var xs xorshift
-	xs.init(uint32(time.Now().UnixNano()))
+	xs.init(rand.Uint32())
 	for ; chance >= 0; chance-- {
 		seed := xs.next()
 		putUint32(out[4:8], seed)
