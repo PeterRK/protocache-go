@@ -9,6 +9,7 @@ import (
 
 	"github.com/peterrk/protocache-go"
 	//"github.com/peterrk/protocache-go/test/fb"
+	//"github.com/peterrk/protocache-go/test/fr"
 	"github.com/peterrk/protocache-go/test/pb"
 	"github.com/peterrk/protocache-go/test/pc"
 	"google.golang.org/protobuf/proto"
@@ -34,7 +35,7 @@ func BenchmarkCompress(b *testing.B) {
 }
 
 func BenchmarkDecompress(b *testing.B) {
-	raw, err := os.ReadFile("test.pc")
+	raw, err := os.ReadFile("test.pb")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -92,8 +93,25 @@ func BenchmarkDecompress(b *testing.B) {
 		junk.traverseFbMain(root)
 		fmt.Println(junk.fuse())
 	}
-*/
 
+	func TestForyBenchmark(t *testing.T) {
+		var junk Junk
+		raw, err := os.ReadFile("test.fr")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f, err := fr.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var root fr.Main
+		if err := f.Deserialize(raw, &root); err != nil {
+			t.Fatal(err)
+		}
+		junk.traverseForyMain(&root)
+		fmt.Println(junk.fuse())
+	}
+*/
 func BenchmarkProtobufVT(b *testing.B) {
 	raw, err := os.ReadFile("test.pb")
 	if err != nil {
@@ -186,6 +204,46 @@ func BenchmarkProtoCache(b *testing.B) {
 }
 
 /*
+	func BenchmarkFory(b *testing.B) {
+		raw, err := os.ReadFile("test.fr")
+		if err != nil {
+			b.Fatal(err)
+		}
+		f, err := fr.New()
+		if err != nil {
+			b.Fatal(err)
+		}
+		var junk Junk
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			var root fr.Main
+			if err := f.Deserialize(raw, &root); err != nil {
+				b.Fatal(err)
+			}
+			junk.traverseForyMain(&root)
+		}
+		benchmarkFuse = junk.fuse()
+	}
+
+	func BenchmarkForySerialize(b *testing.B) {
+		f, err := fr.New()
+		if err != nil {
+			b.Fatal(err)
+		}
+		root := fr.CreateObject()
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			out, err := f.Serialize(root)
+			if err != nil {
+				b.Fatal(err)
+			}
+			benchmarkBytes = out
+		}
+	}
+
 	func BenchmarkFlatbuffers(b *testing.B) {
 		raw, err := os.ReadFile("test.fb")
 		if err != nil {
@@ -201,6 +259,7 @@ func BenchmarkProtoCache(b *testing.B) {
 		benchmarkFuse = junk.fuse()
 	}
 */
+
 type Junk struct {
 	u32 uint32
 	f32 float32
@@ -401,116 +460,204 @@ func (p *Junk) traversePcMain(root pc.Main) {
 }
 
 /*
-	func (p *Junk) traverseFbSmall(root *fb.Small) {
-		p.u32 += uint32(root.I32())
-		p.consumeBool(root.Flag())
-		p.consumeBytes(root.Str())
+func (p *Junk) traverseForySmall(root *fr.Small) {
+	if root == nil {
+		return
 	}
+	p.u32 += uint32(root.I32)
+	p.consumeBool(root.Flag)
+	p.consumeString(root.Str)
+}
 
-	func (p *Junk) traverseFbVec2D(root *fb.Vec2D) {
-		var unit fb.Vec1D
-		for i := 0; i < root.AliasLength(); i++ {
-			root.Alias(&unit, i)
-			for j := 0; j < unit.AliasLength(); j++ {
-				p.f32 += unit.Alias(j)
-			}
-		}
+func (p *Junk) traverseForyVec2D(root *fr.Vec2D) {
+	if root == nil {
+		return
 	}
-
-	func (p *Junk) traverseFbArrMap(root *fb.ArrMap) {
-		var unit fb.Array
-		var pair fb.ArrMapEntry
-		for i := 0; i < root.AliasLength(); i++ {
-			root.Alias(&pair, i)
-			p.consumeBytes(pair.Key())
-			pair.Value(&unit)
-			for j := 0; j < unit.AliasLength(); j++ {
-				p.f32 += unit.Alias(j)
-			}
+	for _, one := range root.X {
+		for _, v := range one.X {
+			p.f32 += v
 		}
 	}
+}
 
-	func (p *Junk) traverseFbMain(root *fb.Main) {
-		p.u32 += uint32(root.I32()) + root.U32() + uint32(root.Mode())
-		p.consumeBool(root.Flag())
-		p.u32 += uint32(root.TI32()) + uint32(root.TS32()) + root.TU32()
-		for i := 0; i < root.I32vLength(); i++ {
-			p.u32 += uint32(root.I32v(i))
+func (p *Junk) traverseForyArrMap(root *fr.ArrMap) {
+	if root == nil {
+		return
+	}
+	for key, val := range root.X {
+		p.consumeString(key)
+		for _, v := range val.X {
+			p.f32 += v
 		}
-		p.u64 += uint64(root.I64()) + root.U64() +
-			uint64(root.TI64()) + uint64(root.TS64()) + root.TU64()
-		for i := 0; i < root.U64vLength(); i++ {
-			p.u64 += root.U64v(i)
-		}
-		for i := 0; i < root.FlagsLength(); i++ {
-			p.consumeBool(root.Flags(i))
-		}
-		p.consumeBytes(root.Str())
+	}
+}
 
-		data := make([]byte, root.DataLength())
+func (p *Junk) traverseForyMain(root *fr.Main) {
+	p.u32 += uint32(root.I32) + root.U32 + uint32(root.Mode)
+	p.consumeBool(root.Flag)
+	p.u32 += uint32(root.TI32) + uint32(root.TS32) + root.TU32
+	for _, v := range root.I32v {
+		p.u32 += uint32(v)
+	}
+	p.u64 += uint64(root.I64) + root.U64 +
+		uint64(root.TI64) + uint64(root.TS64) + root.TU64
+	for _, v := range root.U64v {
+		p.u64 += v
+	}
+	for _, v := range root.Flags {
+		p.consumeBool(v)
+	}
+	p.consumeString(root.Str)
+	p.consumeBytes(root.Data)
+	for _, v := range root.Strv {
+		p.consumeString(v)
+	}
+	for _, v := range root.Datav {
+		p.consumeBytes(v)
+	}
+
+	p.f32 += root.F32
+	for _, v := range root.F32v {
+		p.f32 += v
+	}
+	p.f64 += root.F64
+	for _, v := range root.F64v {
+		p.f64 += v
+	}
+
+	p.traverseForySmall(root.Object)
+	for i := range root.Objectv {
+		p.traverseForySmall(&root.Objectv[i])
+	}
+
+	for key, val := range root.Index {
+		p.consumeString(key)
+		p.u32 += uint32(val)
+	}
+
+	for key, val := range root.Objects {
+		p.u32 += uint32(key)
+		p.traverseForySmall(&val)
+	}
+
+	p.traverseForyVec2D(root.Matrix)
+	for i := range root.Vector {
+		p.traverseForyArrMap(&root.Vector[i])
+	}
+	p.traverseForyArrMap(root.Arrays)
+}
+
+func (p *Junk) traverseFbSmall(root *fb.Small) {
+	p.u32 += uint32(root.I32())
+	p.consumeBool(root.Flag())
+	p.consumeBytes(root.Str())
+}
+
+func (p *Junk) traverseFbVec2D(root *fb.Vec2D) {
+	var unit fb.Vec1D
+	for i := 0; i < root.AliasLength(); i++ {
+		root.Alias(&unit, i)
+		for j := 0; j < unit.AliasLength(); j++ {
+			p.f32 += unit.Alias(j)
+		}
+	}
+}
+
+func (p *Junk) traverseFbArrMap(root *fb.ArrMap) {
+	var unit fb.Array
+	var pair fb.ArrMapEntry
+	for i := 0; i < root.AliasLength(); i++ {
+		root.Alias(&pair, i)
+		p.consumeBytes(pair.Key())
+		pair.Value(&unit)
+		for j := 0; j < unit.AliasLength(); j++ {
+			p.f32 += unit.Alias(j)
+		}
+	}
+}
+
+func (p *Junk) traverseFbMain(root *fb.Main) {
+	p.u32 += uint32(root.I32()) + root.U32() + uint32(root.Mode())
+	p.consumeBool(root.Flag())
+	p.u32 += uint32(root.TI32()) + uint32(root.TS32()) + root.TU32()
+	for i := 0; i < root.I32vLength(); i++ {
+		p.u32 += uint32(root.I32v(i))
+	}
+	p.u64 += uint64(root.I64()) + root.U64() +
+		uint64(root.TI64()) + uint64(root.TS64()) + root.TU64()
+	for i := 0; i < root.U64vLength(); i++ {
+		p.u64 += root.U64v(i)
+	}
+	for i := 0; i < root.FlagsLength(); i++ {
+		p.consumeBool(root.Flags(i))
+	}
+	p.consumeBytes(root.Str())
+
+	data := make([]byte, root.DataLength())
+	for i := 0; i < len(data); i++ {
+		data[i] = byte(root.Data(i))
+	}
+	p.consumeBytes(data)
+	for i := 0; i < root.StrvLength(); i++ {
+		p.consumeBytes(root.Strv(i))
+	}
+
+	var bytes fb.Bytes
+	for i := 0; i < root.DatavLength(); i++ {
+		root.Datav(&bytes, i)
+		data := make([]byte, bytes.AliasLength())
 		for i := 0; i < len(data); i++ {
-			data[i] = byte(root.Data(i))
+			data[i] = byte(bytes.Alias(i))
 		}
 		p.consumeBytes(data)
-		for i := 0; i < root.StrvLength(); i++ {
-			p.consumeBytes(root.Strv(i))
-		}
+	}
 
-		var bytes fb.Bytes
-		for i := 0; i < root.DatavLength(); i++ {
-			root.Datav(&bytes, i)
-			data := make([]byte, bytes.AliasLength())
-			for i := 0; i < len(data); i++ {
-				data[i] = byte(bytes.Alias(i))
-			}
-			p.consumeBytes(data)
-		}
+	p.f32 += root.F32()
+	for i := 0; i < root.F32vLength(); i++ {
+		p.f32 += root.F32v(i)
+	}
+	p.f64 += root.F64()
+	for i := 0; i < root.F64vLength(); i++ {
+		p.f64 += root.F64v(i)
+	}
 
-		p.f32 += root.F32()
-		for i := 0; i < root.F32vLength(); i++ {
-			p.f32 += root.F32v(i)
-		}
-		p.f64 += root.F64()
-		for i := 0; i < root.F64vLength(); i++ {
-			p.f64 += root.F64v(i)
-		}
-
-		var small fb.Small
-		root.Object(&small)
+	var small fb.Small
+	root.Object(&small)
+	p.traverseFbSmall(&small)
+	for i := 0; i < root.ObjectvLength(); i++ {
+		root.Objectv(&small, i)
 		p.traverseFbSmall(&small)
-		for i := 0; i < root.ObjectvLength(); i++ {
-			root.Objectv(&small, i)
-			p.traverseFbSmall(&small)
-		}
+	}
 
-		var pair1 fb.Map1Entry
-		for i := 0; i < root.IndexLength(); i++ {
-			root.Index(&pair1, i)
-			p.consumeBytes(pair1.Key())
-			p.u32 += uint32(pair1.Value())
-		}
+	var pair1 fb.Map1Entry
+	for i := 0; i < root.IndexLength(); i++ {
+		root.Index(&pair1, i)
+		p.consumeBytes(pair1.Key())
+		p.u32 += uint32(pair1.Value())
+	}
 
-		var pair2 fb.Map2Entry
-		for i := 0; i < root.ObjectsLength(); i++ {
-			root.Objects(&pair2, i)
-			p.u32 += uint32(pair2.Key())
-			pair2.Value(&small)
-			p.traverseFbSmall(&small)
-		}
+	var pair2 fb.Map2Entry
+	for i := 0; i < root.ObjectsLength(); i++ {
+		root.Objects(&pair2, i)
+		p.u32 += uint32(pair2.Key())
+		pair2.Value(&small)
+		p.traverseFbSmall(&small)
+	}
 
-		var vec2d fb.Vec2D
-		root.Matrix(&vec2d)
-		p.traverseFbVec2D(&vec2d)
+	var vec2d fb.Vec2D
+	root.Matrix(&vec2d)
+	p.traverseFbVec2D(&vec2d)
 
-		var arrMap fb.ArrMap
-		for i := 0; i < root.VectorLength(); i++ {
-			root.Vector(&arrMap, i)
-			p.traverseFbArrMap(&arrMap)
-		}
-		root.Arrays(&arrMap)
+	var arrMap fb.ArrMap
+	for i := 0; i < root.VectorLength(); i++ {
+		root.Vector(&arrMap, i)
 		p.traverseFbArrMap(&arrMap)
 	}
+	root.Arrays(&arrMap)
+	p.traverseFbArrMap(&arrMap)
+}
 */
+
 func (p *Junk) traversePbMessage(root protoreflect.Message) {
 	consume := func(field protoreflect.FieldDescriptor, value protoreflect.Value) {
 		switch field.Kind() {
