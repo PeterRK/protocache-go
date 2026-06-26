@@ -29,12 +29,12 @@ func testPerfectHash(t *testing.T, size int) {
 	for i := 0; i < size; i++ {
 		keys[i] = castStrToBytes(strconv.Itoa(i))
 	}
-	table := buildPerfectHashTable(&testHashKeySource{keys: keys})
-	assert(t, table.isValid())
+	table := BuildPerfectHashTable(&testHashKeySource{keys: keys})
+	assert(t, table.IsValid())
 
 	mark := make([]bool, size)
 	for i := 0; i < size; i++ {
-		pos := table.lookup(keys[i])
+		pos := table.Lookup(keys[i])
 		assert(t, pos < uint32(size))
 		assert(t, !mark[pos])
 		mark[pos] = true

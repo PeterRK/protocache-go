@@ -67,21 +67,34 @@ func calcBitmapSize(section uint32) uint32 {
 	return ((section*3 + 31) & ^uint32(31)) / 4
 }
 
-type perfectHashTable struct {
+// PerfectHashTable stores a compact perfect hash table for a fixed set of keys.
+//
+// Lookup returns a slot in [0, Size()) for keys that were present when the table
+// was built. Callers that use Lookup for membership checks should compare the
+// key stored at the returned slot, because unknown keys also map to some slot.
+type PerfectHashTable struct {
 	data    []byte
 	size    uint32
 	section uint32
 }
 
-func (h *perfectHashTable) isValid() bool {
+// IsValid reports whether the table was built or decoded successfully.
+func (h *PerfectHashTable) IsValid() bool {
 	return len(h.data) != 0
 }
 
-func (h *perfectHashTable) encodedBytes() []byte {
+// Size returns the number of keys used to build the table.
+func (h *PerfectHashTable) Size() uint32 {
+	return h.size
+}
+
+// EncodedBytes returns the compact encoded table bytes.
+func (h *PerfectHashTable) EncodedBytes() []byte {
 	return h.data
 }
 
-func (h *perfectHashTable) initFromEncoded(data []byte) bool {
+// InitFromEncoded initializes the table from bytes returned by EncodedBytes.
+func (h *PerfectHashTable) InitFromEncoded(data []byte) bool {
 	if len(data) < 4 {
 		return false
 	}
@@ -111,7 +124,12 @@ func (h *perfectHashTable) initFromEncoded(data []byte) bool {
 	return true
 }
 
-func (h *perfectHashTable) lookup(key []byte) uint32 {
+// Lookup returns the slot for key.
+//
+// For keys outside the original key set, Lookup still returns a slot. Callers
+// that need membership semantics should verify that the key at the returned slot
+// equals the lookup key.
+func (h *PerfectHashTable) Lookup(key []byte) uint32 {
 	if h.size < 2 {
 		return 0
 	}
@@ -156,13 +174,18 @@ type graph[T unsigned] struct {
 	nodes []T
 }
 
-type hashKeySource interface {
+// PerfectHashKeySource streams keys used to build a PerfectHashTable.
+//
+// BuildPerfectHashTable may call Reset and Next multiple times while searching
+// for a collision-free seed. Total must remain stable throughout the build and
+// must not exceed (1<<28)-1.
+type PerfectHashKeySource interface {
 	Reset()
 	Total() int
 	Next() []byte
 }
 
-func (g *graph[T]) init(seed uint32, src hashKeySource) {
+func (g *graph[T]) init(seed uint32, src PerfectHashKeySource) {
 	setAll(castToBytes(g.nodes))
 
 	section := uint32(len(g.nodes) / 3)
@@ -253,7 +276,7 @@ func (g *graph[T]) mapping(free []T, book []byte, bitmap []byte) {
 	}
 }
 
-func build[T unsigned](src hashKeySource) []byte {
+func build[T unsigned](src PerfectHashKeySource) []byte {
 	total := src.Total()
 	if total <= 1 || total > 0xfffffff {
 		return nil
@@ -330,12 +353,16 @@ func build[T unsigned](src hashKeySource) []byte {
 	return nil
 }
 
-func buildPerfectHashTable(src hashKeySource) perfectHashTable {
+// BuildPerfectHashTable builds a compact perfect hash table from src.
+//
+// The maximum supported key count is (1<<28)-1. If src is too large, or if no
+// collision-free seed is found, BuildPerfectHashTable returns an invalid table.
+func BuildPerfectHashTable(src PerfectHashKeySource) PerfectHashTable {
 	total := src.Total()
 	if total > 0xfffffff {
-		return perfectHashTable{}
+		return PerfectHashTable{}
 	}
-	out := perfectHashTable{size: uint32(total)}
+	out := PerfectHashTable{size: uint32(total)}
 	if total > 0xffff {
 		out.data = build[uint32](src)
 	} else if total > 0xff {
@@ -348,7 +375,7 @@ func buildPerfectHashTable(src hashKeySource) perfectHashTable {
 		return out
 	}
 	if out.data == nil {
-		return perfectHashTable{}
+		return PerfectHashTable{}
 	}
 	out.section = calcSectionSize(out.size)
 	return out

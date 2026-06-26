@@ -816,7 +816,7 @@ func encodeMap(field protoreflect.FieldDescriptor, pack protoreflect.Map) ([]uin
 
 func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
 	size := len(parts)
-	var index perfectHashTable
+	var index PerfectHashTable
 	var stackOrder [8]uint32
 	order := stackOrder[:0]
 	if size <= len(stackOrder) {
@@ -824,14 +824,14 @@ func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
 	} else {
 		order = make([]uint32, size)
 	}
-	build := func(src hashKeySource) {
-		index = buildPerfectHashTable(src)
-		if !index.isValid() {
+	build := func(src PerfectHashKeySource) {
+		index = BuildPerfectHashTable(src)
+		if !index.IsValid() {
 			return
 		}
 		src.Reset()
 		for i := 0; i < size; i++ {
-			order[index.lookup(src.Next())] = uint32(i)
+			order[index.Lookup(src.Next())] = uint32(i)
 		}
 	}
 
@@ -840,11 +840,11 @@ func encodeMapParts(parts []mapParts, stringKey bool) ([]uint32, error) {
 	} else {
 		build(&scalarReader{arrayReader: arrayReader{parts: parts}})
 	}
-	if !index.isValid() {
+	if !index.IsValid() {
 		return nil, errors.New("fail to build map")
 	}
 
-	encoded := index.encodedBytes()
+	encoded := index.EncodedBytes()
 	n0 := int(calcWordSize(uint32(len(encoded))))
 	n1, m1 := bestKvArraySize(parts, order, true)
 	n2, m2 := bestKvArraySize(parts, order, false)

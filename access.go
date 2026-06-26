@@ -391,7 +391,7 @@ func (a *Array) Float64() []float64 {
 }
 
 type Map struct {
-	core     perfectHashTable
+	core     PerfectHashTable
 	body     uint32
 	keyWidth uint16
 	valWidth uint16
@@ -399,7 +399,7 @@ type Map struct {
 
 func AsMap(data []byte) Map {
 	m := Map{}
-	if !m.core.initFromEncoded(data) {
+	if !m.core.InitFromEncoded(data) {
 		return Map{}
 	}
 	// Map bodies are written on a 32-bit word boundary, so the payload starts
@@ -415,7 +415,7 @@ func AsMap(data []byte) Map {
 }
 
 func (m *Map) IsValid() bool {
-	return m.core.isValid()
+	return m.core.IsValid()
 }
 
 func (m *Map) Size() uint32 {
@@ -439,7 +439,7 @@ func (m *Map) Value(i uint32) Field {
 }
 
 func (m *Map) FindByString(key string) Field {
-	idx := m.core.lookup(castStrToBytes(key))
+	idx := m.core.Lookup(castStrToBytes(key))
 	field := m.Key(idx)
 	if field.GetString() != key {
 		return Field{}
@@ -450,7 +450,7 @@ func (m *Map) FindByString(key string) Field {
 func (m *Map) FindByUint32(key uint32) Field {
 	var raw [4]byte
 	putUint32(raw[:], key)
-	idx := m.core.lookup(raw[:])
+	idx := m.core.Lookup(raw[:])
 	field := m.Key(idx)
 	if field.GetUint32() != key {
 		return Field{}
@@ -465,7 +465,7 @@ func (m *Map) FindByInt32(key int32) Field {
 func (m *Map) FindByUint64(key uint64) Field {
 	var raw [8]byte
 	putUint64(raw[:], key)
-	idx := m.core.lookup(raw[:])
+	idx := m.core.Lookup(raw[:])
 	field := m.Key(idx)
 	if field.GetUint64() != key {
 		return Field{}
