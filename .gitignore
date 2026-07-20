@@ -1,0 +1,9 @@
+/.claude/
+/.codex
+/.gocache/
+/.gomodcache/
+/*.test
+/coverage.out
+/*.prof
+/test/test.pb
+/test/test.pc

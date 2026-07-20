@@ -158,10 +158,7 @@ func BenchmarkProtoCacheReflect(b *testing.B) {
 	if descriptor == nil {
 		b.Fatal("fail to get root")
 	}
-	raw, err := os.ReadFile("test.pc")
-	if err != nil {
-		b.Fatal(err)
-	}
+	raw := loadBenchmarkProtoCache(b)
 	var junk Junk
 	b.ReportAllocs()
 	b.ResetTimer()

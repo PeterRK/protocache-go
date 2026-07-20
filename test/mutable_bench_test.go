@@ -1,13 +1,10 @@
 package test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/peterrk/protocache-go"
-	"github.com/peterrk/protocache-go/test/pb"
 	"github.com/peterrk/protocache-go/test/pc"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var (
@@ -17,32 +14,7 @@ var (
 
 func loadMutableRaw(b *testing.B) []byte {
 	b.Helper()
-	raw, err := os.ReadFile("test.json")
-	if err != nil {
-		b.Fatal(err)
-	}
-	message := &pb.Main{}
-	if err := protojson.Unmarshal(raw, message); err != nil {
-		b.Fatal(err)
-	}
-	raw, err = protocache.Serialize(message)
-	if err != nil {
-		b.Fatal(err)
-	}
-	return raw
-}
-
-func loadPBMain(b *testing.B) *pb.Main {
-	b.Helper()
-	raw, err := os.ReadFile("test.json")
-	if err != nil {
-		b.Fatal(err)
-	}
-	message := &pb.Main{}
-	if err := protojson.Unmarshal(raw, message); err != nil {
-		b.Fatal(err)
-	}
-	return message
+	return loadBenchmarkProtoCache(b)
 }
 
 func (p *Junk) traverseMutableSmall(root *pc.SmallEX) {
@@ -163,7 +135,7 @@ func BenchmarkPartlySerializeEX(b *testing.B) {
 }
 
 func BenchmarkSerialize(b *testing.B) {
-	message := loadPBMain(b)
+	message := loadBenchmarkMain(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -177,7 +149,7 @@ func BenchmarkSerialize(b *testing.B) {
 }
 
 func BenchmarkSerializeVT(b *testing.B) {
-	message := loadPBMain(b)
+	message := loadBenchmarkMain(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()

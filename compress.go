@@ -67,64 +67,68 @@ func Decompress(src []byte) ([]byte, error) {
 		return nil, nil
 	}
 
+	var size uint32
 	k := 0
-	size := uintptr(0)
-	decodeLen := func() bool {
-		for sft := 0; sft < 32; sft += 7 {
-			if k >= len(src) {
-				return false
-			}
-			b := uintptr(src[k])
-			k++
-			if (b & 0x80) != 0 {
-				size |= (b & 0x7f) << sft
-			} else {
-				size |= b << sft
-				return true
-			}
+	for shift := uint(0); ; shift += 7 {
+		if k >= len(src) || shift >= 32 {
+			return nil, errors.New("broken header")
 		}
-		return false
+		b := src[k]
+		k++
+		if shift == 28 && b&0xf0 != 0 {
+			return nil, errors.New("broken header")
+		}
+		size |= uint32(b&0x7f) << shift
+		if b&0x80 == 0 {
+			break
+		}
 	}
 
-	if !decodeLen() {
-		return nil, errors.New("broken header")
+	encoded := src[k:]
+	if uint64(size) > uint64(len(encoded))*8 {
+		return nil, errors.New("broken data")
 	}
-	out := make([]byte, size, size+7) // extra space for write
+	maxInt := int(^uint(0) >> 1)
+	if uint64(size) > uint64(maxInt-7) {
+		return nil, errors.New("data too large")
+	}
 
-	s := uintptr(unsafe.Pointer(&src[k]))
-	end := s + uintptr(len(src)-k)
-	dest := uintptr(unsafe.Pointer(&out[0]))
-	tail := dest + size
-
+	tail := int(size)
+	out := make([]byte, tail+7)
+	source, dest := 0, 0
 	unpack := func(mark uint8) bool {
-		if (mark & 8) != 0 {
-			cnt := uintptr(mark&3) + 1
-			if dest+cnt > tail {
+		if mark&8 != 0 {
+			count := int(mark&3) + 1
+			if count > tail-dest {
 				return false
 			}
-			*(*uint32)(unsafe.Pointer(dest)) = uint32(0) - uint32((mark>>2)&1)
-			dest += cnt
+			value := uint32(0)
+			if mark&4 != 0 {
+				value = ^value
+			}
+			*(*uint32)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(out)), dest)) = value
+			dest += count
 		} else if mark != 0 {
-			l := uintptr(mark)
-			if s+l > end || dest+l > tail {
+			count := int(mark)
+			if count > len(encoded)-source || count > tail-dest {
 				return false
 			}
-			if s+8 <= end {
-				*(*uint64)(unsafe.Pointer(dest)) = *(*uint64)(unsafe.Pointer(s))
+			if len(encoded)-source >= 8 {
+				src := unsafe.Add(unsafe.Pointer(unsafe.SliceData(encoded)), source)
+				dst := unsafe.Add(unsafe.Pointer(unsafe.SliceData(out)), dest)
+				*(*uint64)(dst) = *(*uint64)(src)
 			} else {
-				for i := uintptr(0); i < l; i++ {
-					*(*byte)(unsafe.Pointer(dest + i)) = *(*byte)(unsafe.Pointer(s + i))
-				}
+				copy(out[dest:dest+count], encoded[source:source+count])
 			}
-			s += l
-			dest += l
+			source += count
+			dest += count
 		}
 		return true
 	}
 
-	for s < end {
-		mark := *(*byte)(unsafe.Pointer(s))
-		s++
+	for source < len(encoded) {
+		mark := encoded[source]
+		source++
 		if !unpack(mark&0xf) || !unpack(mark>>4) {
 			return nil, errors.New("broken data")
 		}
@@ -132,5 +136,5 @@ func Decompress(src []byte) ([]byte, error) {
 	if dest != tail {
 		return nil, errors.New("size mismatch")
 	}
-	return out, nil
+	return out[:tail], nil
 }

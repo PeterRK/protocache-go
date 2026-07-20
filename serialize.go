@@ -749,7 +749,6 @@ func encodeList(field protoreflect.FieldDescriptor, list protoreflect.List) ([]u
 	default:
 		return nil, fmt.Errorf("unsupported field: %s", field.FullName())
 	}
-	return nil, nil
 }
 
 type arrayReader struct {
