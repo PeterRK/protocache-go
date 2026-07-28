@@ -11,6 +11,9 @@ Alternative flat binary format for [Protobuf schema](https://protobuf.dev/progra
 | Decode + Traverse(reflection) | 11301ns | 8658ns | 1327ns | No Go API | No Go API |
 
 See detail in [C++ version](https://github.com/peterrk/protocache).
+The supported [schema](https://github.com/PeterRK/protocache/blob/main/schema.md)
+and binary [data format](https://github.com/PeterRK/protocache/blob/main/data-format.md)
+follow the C++ reference implementation.
 
 ## Code Gen
 ```sh

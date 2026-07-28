@@ -113,6 +113,16 @@ func TestTinyFixtures(t *testing.T) {
 	})
 }
 
+func TestDeprecatedFieldExcluded(t *testing.T) {
+	raw, err := protocache.Serialize(&pb.Small{I32: 7, Junk: 99})
+	assert(t, err == nil)
+
+	msg := protocache.AsMessage(raw)
+	assert(t, msg.IsValid())
+	assert(t, msg.HasField(0))
+	assert(t, !msg.HasField(4))
+}
+
 func TestProtoCache(t *testing.T) {
 	raw, err := os.ReadFile("test.json")
 	assert(t, err == nil)

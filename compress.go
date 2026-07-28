@@ -5,6 +5,7 @@ import (
 	"unsafe"
 )
 
+// Compress returns the ProtoCache compressed representation of src; it returns nil for empty input.
 func Compress(src []byte) []byte {
 	if len(src) == 0 {
 		return nil
@@ -62,6 +63,7 @@ func Compress(src []byte) []byte {
 	return out
 }
 
+// Decompress decodes ProtoCache compressed data and rejects malformed input; it returns nil, nil for empty input.
 func Decompress(src []byte) ([]byte, error) {
 	if len(src) == 0 {
 		return nil, nil

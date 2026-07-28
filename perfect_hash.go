@@ -88,12 +88,12 @@ func (h *PerfectHashTable) Size() uint32 {
 	return h.size
 }
 
-// EncodedBytes returns the compact encoded table bytes.
+// EncodedBytes returns the compact encoded table bytes without copying; the result must be treated as read-only.
 func (h *PerfectHashTable) EncodedBytes() []byte {
 	return h.data
 }
 
-// InitFromEncoded initializes the table from bytes returned by EncodedBytes.
+// InitFromEncoded initializes the table from bytes returned by EncodedBytes without copying; data must remain unchanged while the table is in use.
 func (h *PerfectHashTable) InitFromEncoded(data []byte) bool {
 	if len(data) < 4 {
 		return false
@@ -180,8 +180,11 @@ type graph[T unsigned] struct {
 // for a collision-free seed. Total must remain stable throughout the build and
 // must not exceed (1<<28)-1.
 type PerfectHashKeySource interface {
+	// Reset rewinds the source so the next call to Next returns the first key.
 	Reset()
+	// Total returns the stable number of keys in the source.
 	Total() int
+	// Next returns the next key. The key only needs to remain valid until the next source call.
 	Next() []byte
 }
 

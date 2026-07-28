@@ -26,6 +26,7 @@ extern bool ParseProto(const struct Buffer* input, struct Buffer* output);
 */
 import "C"
 
+// ParseProto parses .proto source text into a file descriptor.
 func ParseProto(data []byte) (*pb.FileDescriptorProto, error) {
 	input := C.struct_Buffer{
 		data: C.uintptr_t(uintptr(unsafe.Pointer(unsafe.SliceData(data)))),

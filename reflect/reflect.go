@@ -1,3 +1,8 @@
+// Package reflect provides schema descriptors used to inspect ProtoCache
+// messages dynamically.
+//
+// A DescriptorPool is populated from protobuf file descriptors. It is not safe
+// for concurrent registration or lookup.
 package reflect
 
 import (
@@ -9,24 +14,39 @@ import (
 	pb "google.golang.org/protobuf/types/descriptorpb"
 )
 
+// FieldType identifies the ProtoCache representation of a protobuf field.
 type FieldType uint8
 
 const (
-	TypeNone    FieldType = 0
+	// TypeNone denotes the absence of a field type.
+	TypeNone FieldType = 0
+	// TypeMessage denotes an embedded message.
 	TypeMessage FieldType = 1
-	TypeBytes   FieldType = 2
-	TypeString  FieldType = 3
+	// TypeBytes denotes a byte string.
+	TypeBytes FieldType = 2
+	// TypeString denotes a UTF-8 string.
+	TypeString FieldType = 3
+	// TypeFloat64 denotes a 64-bit floating-point value.
 	TypeFloat64 FieldType = 4
+	// TypeFloat32 denotes a 32-bit floating-point value.
 	TypeFloat32 FieldType = 5
-	TypeUint64  FieldType = 6
-	TypeUint32  FieldType = 7
-	TypeInt64   FieldType = 8
-	TypeInt32   FieldType = 9
-	TypeBool    FieldType = 10
-	TypeEnum    FieldType = 11
+	// TypeUint64 denotes an unsigned 64-bit integer.
+	TypeUint64 FieldType = 6
+	// TypeUint32 denotes an unsigned 32-bit integer.
+	TypeUint32 FieldType = 7
+	// TypeInt64 denotes a signed 64-bit integer.
+	TypeInt64 FieldType = 8
+	// TypeInt32 denotes a signed 32-bit integer.
+	TypeInt32 FieldType = 9
+	// TypeBool denotes a boolean value.
+	TypeBool FieldType = 10
+	// TypeEnum denotes a protobuf enum value.
+	TypeEnum FieldType = 11
+	// TypeUnknown denotes a referenced type that has not been resolved.
 	TypeUnknown FieldType = 255
 )
 
+// Field describes one protobuf field in ProtoCache terms.
 type Field struct {
 	id              uint16
 	repeated        bool
@@ -36,43 +56,53 @@ type Field struct {
 	valueDescriptor *Descriptor
 }
 
+// Id returns the zero-based ProtoCache field id, equal to the protobuf field number minus one.
 func (f *Field) Id() uint16 {
 	return f.id
 }
 
+// IsRepeated reports whether the field is repeated.
 func (f *Field) IsRepeated() bool {
 	return f.repeated
 }
 
+// Key returns the map key type, or TypeNone for a non-map field.
 func (f *Field) Key() FieldType {
 	return f.key
 }
 
+// Value returns the field value or map value type.
 func (f *Field) Value() FieldType {
 	return f.value
 }
 
+// ValueType returns the fully qualified protobuf type name for an unresolved or message value.
 func (f *Field) ValueType() string {
 	return f.valueType
 }
 
+// ValueDescriptor returns the descriptor of a message value, or nil for non-message values.
 func (f *Field) ValueDescriptor() *Descriptor {
 	return f.valueDescriptor
 }
 
+// IsValid reports whether f describes a supported field.
 func (f *Field) IsValid() bool {
 	return f.value != TypeNone
 }
 
+// IsMap reports whether f describes a map field.
 func (f *Field) IsMap() bool {
 	return f.key != TypeNone
 }
 
+// Descriptor describes a protobuf message or a ProtoCache alias.
 type Descriptor struct {
 	alias  Field
 	fields map[string]*Field
 }
 
+// Alias returns the aliased field for an alias descriptor, or nil for a regular message.
 func (d *Descriptor) Alias() *Field {
 	if d.alias.IsValid() {
 		return &d.alias
@@ -80,10 +110,12 @@ func (d *Descriptor) Alias() *Field {
 	return nil
 }
 
+// Lookup returns the field named name, or nil when no such field exists.
 func (d *Descriptor) Lookup(name string) *Field {
 	return d.fields[name]
 }
 
+// Traverse visits fields in unspecified order until doit returns false.
 func (d *Descriptor) Traverse(doit func(name string, field *Field) bool) {
 	for k, v := range d.fields {
 		if !doit(k, v) {
@@ -92,19 +124,26 @@ func (d *Descriptor) Traverse(doit func(name string, field *Field) bool) {
 	}
 }
 
+// DescriptorPool stores descriptors registered from protobuf files and is not safe for concurrent use.
 type DescriptorPool struct {
 	enum map[string]struct{}
 	pool map[string]*Descriptor
 }
 
 var (
+	// ErrDuplicateDescriptor reports a duplicate fully qualified descriptor name.
 	ErrDuplicateDescriptor = errors.New("duplicate descriptor")
-	ErrInvalidField        = errors.New("invalid field")
-	ErrInvalidFieldNumber  = errors.New("invalid field number")
-	ErrInvalidMapKey       = errors.New("invalid map key type")
-	ErrUnknownType         = errors.New("unknown type")
+	// ErrInvalidField reports an unsupported or malformed field declaration.
+	ErrInvalidField = errors.New("invalid field")
+	// ErrInvalidFieldNumber reports a non-positive protobuf field number.
+	ErrInvalidFieldNumber = errors.New("invalid field number")
+	// ErrInvalidMapKey reports a map key type unsupported by ProtoCache.
+	ErrInvalidMapKey = errors.New("invalid map key type")
+	// ErrUnknownType reports a referenced protobuf type that could not be resolved.
+	ErrUnknownType = errors.New("unknown type")
 )
 
+// Register adds the non-deprecated declarations in proto and resolves their referenced types.
 func (p *DescriptorPool) Register(proto *pb.FileDescriptorProto) error {
 	if p.enum == nil {
 		p.enum = make(map[string]struct{})
@@ -271,6 +310,7 @@ func (p *DescriptorPool) register(ns string, proto *pb.DescriptorProto) error {
 	return nil
 }
 
+// Find returns the descriptor with the fully qualified protobuf name, or nil when absent or unresolved.
 func (p *DescriptorPool) Find(fullname string) *Descriptor {
 	descriptor := p.pool[fullname]
 	if descriptor == nil {

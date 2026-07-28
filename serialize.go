@@ -6,8 +6,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
+// Serialize converts a non-nil protobuf message to ProtoCache data.
 func Serialize(obj proto.Message) ([]byte, error) {
 	data, err := encodeMessage(obj.ProtoReflect())
 	if err != nil {
@@ -16,34 +18,42 @@ func Serialize(obj proto.Message) ([]byte, error) {
 	return castToBytes(data), nil
 }
 
+// SerializeWords converts generated encoded words to bytes while forwarding err; it is intended for generated code.
 func SerializeWords(data []uint32, err error) ([]byte, error) {
 	return WordsToBytes(data), err
 }
 
+// EncodeScalar encodes a scalar field value; it is intended for generated code.
 func EncodeScalar[T scalar](v T) ([]uint32, error) {
 	return encodeScalar(v), nil
 }
 
+// EncodeBool encodes a bool field value; it is intended for generated code.
 func EncodeBool(v bool) ([]uint32, error) {
 	return encodeBool(v), nil
 }
 
+// EncodeBytes encodes a bytes field value; it is intended for generated code.
 func EncodeBytes(data []byte) ([]uint32, error) {
 	return encodeBytes(data)
 }
 
+// EncodeString encodes a string field value; it is intended for generated code.
 func EncodeString(str string) ([]uint32, error) {
 	return encodeString(str)
 }
 
+// EncodeMessageParts assembles field parts indexed by zero-based field id; it is intended for generated code.
 func EncodeMessageParts(parts [][]uint32) ([]uint32, error) {
 	return encodeMessageParts(parts)
 }
 
+// EncodeScalarVector encodes a scalar array; it is intended for generated code.
 func EncodeScalarVector[T scalar](vec []T) ([]uint32, error) {
 	return encodeScalarVector(vec)
 }
 
+// EncodeBoolArray encodes a bool array; it is intended for generated code.
 func EncodeBoolArray(vec []bool) ([]uint32, error) {
 	if len(vec) >= (1 << 30) {
 		return nil, errors.New("too long string")
@@ -66,6 +76,7 @@ func EncodeBoolArray(vec []bool) ([]uint32, error) {
 	return out, nil
 }
 
+// EncodeEnumArray encodes an enum array; it is intended for generated code.
 func EncodeEnumArray[T Enum](vec []T) ([]uint32, error) {
 	return EncodeScalarVector(upCast[T, int32](vec))
 }
@@ -96,6 +107,7 @@ func writeEncodedBytes(dst []uint32, data []byte) int {
 	return words
 }
 
+// EncodeStringArray encodes a string array; it is intended for generated code.
 func EncodeStringArray(vec []string) ([]uint32, error) {
 	var stackLens [8]int
 	lens := stackLens[:0]
@@ -162,12 +174,14 @@ func EncodeStringArray(vec []string) ([]uint32, error) {
 	return out, nil
 }
 
+// EncodeBytesArray encodes a bytes array; it is intended for generated code.
 func EncodeBytesArray(vec [][]byte) ([]uint32, error) {
 	return encodeArray(len(vec), func(i int) ([]uint32, error) {
 		return encodeBytes(vec[i])
 	})
 }
 
+// EncodeObjectArray encodes an object array with encoder; it is intended for generated code.
 func EncodeObjectArray[T any](vec []T, encoder func(T) ([]uint32, error)) ([]uint32, error) {
 	return encodeArray(len(vec), func(i int) ([]uint32, error) {
 		return encoder(vec[i])
@@ -197,6 +211,7 @@ func collectMapParts[K comparable, V any](x map[K]V,
 	return parts, nil
 }
 
+// EncodeScalarMap encodes a map with a scalar key; it is intended for generated code.
 func EncodeScalarMap[K scalar, V any](x map[K]V,
 	keyEnc func(K) ([]uint32, error), valEnc func(V) ([]uint32, error)) ([]uint32, error) {
 	if len(x) == 0 {
@@ -209,6 +224,7 @@ func EncodeScalarMap[K scalar, V any](x map[K]V,
 	return encodeMapParts(parts, false)
 }
 
+// EncodeStringMap encodes a map with string keys; it is intended for generated code.
 func EncodeStringMap[V any](x map[string]V,
 	encoder func(V) ([]uint32, error)) ([]uint32, error) {
 	if len(x) == 0 {
@@ -221,6 +237,7 @@ func EncodeStringMap[V any](x map[string]V,
 	return encodeMapParts(parts, true)
 }
 
+// BytesToWords reinterprets data without copying; it panics unless len(data) is divisible by four and is intended for generated code.
 func BytesToWords(data []byte) []uint32 {
 	if len(data) == 0 {
 		return nil
@@ -231,6 +248,7 @@ func BytesToWords(data []byte) []uint32 {
 	return castBytesToWords(data)
 }
 
+// WordsToBytes reinterprets data without copying; it is intended for generated code.
 func WordsToBytes(data []uint32) []byte {
 	if len(data) == 0 {
 		return nil
@@ -246,6 +264,11 @@ func calcOffset(off uint32) uint32 {
 	return (off << 2) | 3
 }
 
+func isDeprecated(desc protoreflect.Descriptor) bool {
+	options, ok := desc.Options().(*descriptorpb.FieldOptions)
+	return ok && options.GetDeprecated()
+}
+
 func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 	descriptor := message.Descriptor()
 	originFields := descriptor.Fields()
@@ -257,7 +280,7 @@ func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 		if field == nil || field.Number() <= 0 {
 			return nil, fmt.Errorf("illegal field in %s", descriptor.FullName())
 		}
-		if field.Number() == 1 && field.Name() == "_" {
+		if field.Number() == 1 && field.Name() == "_" && !isDeprecated(field) {
 			if !message.Has(field) {
 				if field.IsMap() {
 					return []uint32{5 << 28}, nil
@@ -306,7 +329,7 @@ func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 	}
 	for i := 0; i < originFields.Len(); i++ {
 		field := originFields.Get(i)
-		if !message.Has(field) {
+		if isDeprecated(field) || !message.Has(field) {
 			continue
 		}
 		var err error
@@ -756,16 +779,19 @@ type arrayReader struct {
 	curr  int
 }
 
+// Reset rewinds the reader.
 func (r *arrayReader) Reset() {
 	r.curr = 0
 }
 
+// Total returns the number of values in the reader.
 func (r *arrayReader) Total() int {
 	return len(r.parts)
 }
 
 type scalarReader struct{ arrayReader }
 
+// Next returns the next scalar key.
 func (r *scalarReader) Next() []byte {
 	key := castToBytes(r.parts[r.curr].key)
 	r.curr++
@@ -774,6 +800,7 @@ func (r *scalarReader) Next() []byte {
 
 type stringReader struct{ arrayReader }
 
+// Next returns the next string key.
 func (r *stringReader) Next() []byte {
 	key := castToBytes(r.parts[r.curr].key)
 	r.curr++
