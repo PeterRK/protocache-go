@@ -331,7 +331,7 @@ func build[T unsigned](src PerfectHashKeySource) []byte {
 	}
 	var xs xorshift
 	xs.init(rand.Uint32())
-	for ; chance >= 0; chance-- {
+	for ; chance > 0; chance-- {
 		seed := xs.next()
 		putUint32(out[4:8], seed)
 		g.init(seed, src)
