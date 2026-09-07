@@ -325,10 +325,7 @@ func build[T unsigned](src PerfectHashKeySource) []byte {
 		book = make([]byte, n)
 	}
 
-	chance := 16
-	if sizeof[T]() == 1 {
-		chance = 40
-	}
+	chance := 40
 	var xs xorshift
 	xs.init(rand.Uint32())
 	for ; chance > 0; chance-- {

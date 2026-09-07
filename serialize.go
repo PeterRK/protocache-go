@@ -281,12 +281,6 @@ func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 			return nil, fmt.Errorf("illegal field in %s", descriptor.FullName())
 		}
 		if field.Number() == 1 && field.Name() == "_" && !isDeprecated(field) {
-			if !message.Has(field) {
-				if field.IsMap() {
-					return []uint32{5 << 28}, nil
-				}
-				return []uint32{1}, nil
-			}
 			value := message.Get(field)
 			if field.IsMap() {
 				return encodeMap(field, value.Map())
@@ -294,14 +288,7 @@ func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 			if field.IsList() {
 				return encodeList(field, value.List())
 			}
-			part, err := encodeField(field, value)
-			if err != nil {
-				return nil, err
-			}
-			if len(part) == 0 || (len(part) == 1 && field.Kind() == protoreflect.MessageKind) {
-				return []uint32{1}, nil
-			}
-			return part, nil
+			return nil, fmt.Errorf("alias field must be repeated: %s", field.FullName())
 		}
 	}
 	maxId := 1
@@ -340,7 +327,8 @@ func encodeMessage(message protoreflect.Message) ([]uint32, error) {
 			parts[j], err = encodeList(field, message.Get(field).List())
 		} else {
 			parts[j], err = encodeField(field, message.Get(field))
-			if len(parts[j]) == 1 && field.Kind() == protoreflect.MessageKind {
+			// A one-word alias can contain data; only a zero word is empty.
+			if len(parts[j]) == 1 && parts[j][0] == 0 && field.Kind() == protoreflect.MessageKind {
 				parts[j] = nil
 			}
 		}
@@ -560,6 +548,9 @@ func encodeScalarArray[T scalar](size int, get func(i int) T) ([]uint32, error) 
 		return nil, errors.New("array size overflow")
 	}
 	out[0] = uint32((size << 2) | m)
+	if size == 0 {
+		return out, nil
+	}
 	vec := upCast[uint32, T](out[1:])
 	for i := 0; i < size; i++ {
 		vec[i] = get(i)
@@ -574,6 +565,9 @@ func encodeScalarVector[T scalar](src []T) ([]uint32, error) {
 		return nil, errors.New("array size overflow")
 	}
 	out[0] = uint32((len(src) << 2) | m)
+	if len(src) == 0 {
+		return out, nil
+	}
 	vec := upCast[uint32, T](out[1:])
 	copy(vec, src)
 	return out, nil

@@ -1505,21 +1505,21 @@ func exAliasEncodeExpr(field *protogen.Field, imports map[string]string, access 
 				"return protocache.EncodeStringArray([]string(" + access + "))",
 			}
 		case protoreflect.DoubleKind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeScalarVector[float64]([]float64(" + access + "))"}
+			return []string{"return protocache.EncodeScalarVector[float64]([]float64(" + access + "))"}
 		case protoreflect.FloatKind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeScalarVector[float32]([]float32(" + access + "))"}
+			return []string{"return protocache.EncodeScalarVector[float32]([]float32(" + access + "))"}
 		case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeScalarVector[uint64]([]uint64(" + access + "))"}
+			return []string{"return protocache.EncodeScalarVector[uint64]([]uint64(" + access + "))"}
 		case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeScalarVector[int64]([]int64(" + access + "))"}
+			return []string{"return protocache.EncodeScalarVector[int64]([]int64(" + access + "))"}
 		case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeScalarVector[uint32]([]uint32(" + access + "))"}
+			return []string{"return protocache.EncodeScalarVector[uint32]([]uint32(" + access + "))"}
 		case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeScalarVector[int32]([]int32(" + access + "))"}
+			return []string{"return protocache.EncodeScalarVector[int32]([]int32(" + access + "))"}
 		case protoreflect.BoolKind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeBoolArray([]bool(" + access + "))"}
+			return []string{"return protocache.EncodeBoolArray([]bool(" + access + "))"}
 		case protoreflect.EnumKind:
-			return []string{"if len(" + access + ") == 0 { return []uint32{1}, nil }", "return protocache.EncodeEnumArray([]" + strings.TrimPrefix(exGoType(imports, field), "[]") + "(" + access + "))"}
+			return []string{"return protocache.EncodeEnumArray([]" + strings.TrimPrefix(exGoType(imports, field), "[]") + "(" + access + "))"}
 		default:
 			panic("unsupported alias repeated type")
 		}
@@ -1757,7 +1757,7 @@ func GenEXMessages(g *protogen.GeneratedFile, imports map[string]string, list []
 					g.P("		if err != nil {")
 					g.P("			return nil, err")
 					g.P("		}")
-					g.P("		if len(part) > 1 {")
+					g.P("		if len(part) > 1 || (len(part) == 1 && part[0] != 0) {")
 					g.P("			", targetPart, " = part")
 					g.P("		}")
 					g.P("	}")

@@ -134,9 +134,6 @@ func TO_Vec2D_Vec1DEX(data []byte) Vec2D_Vec1DEX {
 }
 
 func ENCODE_Vec2D_Vec1D(x Vec2D_Vec1DEX) ([]uint32, error) {
-	if len(x) == 0 {
-		return []uint32{1}, nil
-	}
 	return protocache.EncodeScalarVector[float32]([]float32(x))
 }
 
@@ -186,9 +183,6 @@ func TO_ArrMap_ArrayEX(data []byte) ArrMap_ArrayEX {
 }
 
 func ENCODE_ArrMap_Array(x ArrMap_ArrayEX) ([]uint32, error) {
-	if len(x) == 0 {
-		return []uint32{1}, nil
-	}
 	return protocache.EncodeScalarVector[float32]([]float32(x))
 }
 
@@ -441,7 +435,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(part) > 1 {
+		if len(part) > 1 || (len(part) == 1 && part[0] != 0) {
 			parts[_FIELD_Main_object] = part
 		}
 	}
@@ -635,7 +629,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(part) > 1 {
+		if len(part) > 1 || (len(part) == 1 && part[0] != 0) {
 			parts[_FIELD_Main_matrix] = part
 		}
 	}
@@ -665,7 +659,7 @@ func ENCODE_Main(m *MainEX) ([]uint32, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(part) > 1 {
+		if len(part) > 1 || (len(part) == 1 && part[0] != 0) {
 			parts[_FIELD_Main_arrays] = part
 		}
 	}
@@ -1308,7 +1302,7 @@ func ENCODE_CyclicA(m *CyclicAEX) ([]uint32, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(part) > 1 {
+		if len(part) > 1 || (len(part) == 1 && part[0] != 0) {
 			parts[_FIELD_CyclicA_cyclic] = part
 		}
 	}
@@ -1403,7 +1397,7 @@ func ENCODE_CyclicB(m *CyclicBEX) ([]uint32, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(part) > 1 {
+		if len(part) > 1 || (len(part) == 1 && part[0] != 0) {
 			parts[_FIELD_CyclicB_cyclic] = part
 		}
 	}
@@ -1557,9 +1551,6 @@ func TO_ModeDict_ValueEX(data []byte) ModeDict_ValueEX {
 }
 
 func ENCODE_ModeDict_Value(x ModeDict_ValueEX) ([]uint32, error) {
-	if len(x) == 0 {
-		return []uint32{1}, nil
-	}
 	return protocache.EncodeEnumArray([]Mode(x))
 }
 

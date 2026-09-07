@@ -420,12 +420,18 @@ func (a *Array) Uint32() []uint32 {
 
 // Int64 returns the elements as int64 values without copying; the encoded width must match int64.
 func (a *Array) Int64() []int64 {
+	if a.size == 0 && a.data != nil {
+		return []int64{}
+	}
 	p := unsafe.Pointer(unsafe.SliceData(a.data))
 	return unsafe.Slice((*int64)(p), a.size)
 }
 
 // Uint64 returns the elements as uint64 values without copying; the encoded width must match uint64.
 func (a *Array) Uint64() []uint64 {
+	if a.size == 0 && a.data != nil {
+		return []uint64{}
+	}
 	p := unsafe.Pointer(unsafe.SliceData(a.data))
 	return unsafe.Slice((*uint64)(p), a.size)
 }
@@ -438,6 +444,9 @@ func (a *Array) Float32() []float32 {
 
 // Float64 returns the elements as float64 values without copying; the encoded width must match float64.
 func (a *Array) Float64() []float64 {
+	if a.size == 0 && a.data != nil {
+		return []float64{}
+	}
 	p := unsafe.Pointer(unsafe.SliceData(a.data))
 	return unsafe.Slice((*float64)(p), a.size)
 }

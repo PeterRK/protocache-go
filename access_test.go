@@ -1,8 +1,8 @@
 package protocache
 
 import (
-	"os"
 	"math/rand"
+	"os"
 	"testing"
 	"unsafe"
 
@@ -422,4 +422,76 @@ func BenchmarkGetObjectOffsetCurrent(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		benchBytesSink = field.GetObject()
 	}
+}
+
+func TestTruncatedHeaders(t *testing.T) {
+	for size := 0; size < 4; size++ {
+		raw := make([]byte, size)
+		message := AsMessage(raw)
+		array := AsArray(raw)
+		pack := AsMap(raw)
+		var hash PerfectHashTable
+		if message.IsValid() || array.IsValid() || pack.IsValid() || hash.InitFromEncoded(raw) {
+			t.Fatalf("accepted %d-byte header", size)
+		}
+		if message.DetectInlined() != nil || DetectArray(raw, nil) != nil || DetectMap(raw, nil, nil) != nil {
+			t.Fatalf("detected %d-byte header", size)
+		}
+	}
+
+	for _, sections := range []int{1, 2, 255} {
+		header := make([]byte, 4+8*sections)
+		header[0] = byte(sections)
+		for size := 4; size < len(header); size++ {
+			message := AsMessage(header[:size:size])
+			field := message.GetField(uint16(12 + 25*(sections-1)))
+			if message.IsValid() || field.IsValid() || message.HasField(12) || message.DetectInlined() != nil {
+				t.Fatalf("accepted truncated message header: sections=%d, bytes=%d", sections, size)
+			}
+		}
+		message := AsMessage(header)
+		if !message.IsValid() || len(message.DetectInlined()) != len(header) {
+			t.Fatalf("rejected complete message header: sections=%d", sections)
+		}
+	}
+
+	// A two-entry map needs the seed and bitmap as well as the first word.
+	for size := 4; size < 16; size++ {
+		raw := make([]byte, size)
+		putUint32(raw, 0x50000002)
+		pack := AsMap(raw)
+		if pack.IsValid() || DetectMap(raw, nil, nil) != nil {
+			t.Fatalf("accepted truncated perfect-hash header: bytes=%d", size)
+		}
+	}
+}
+
+func testEmptyScalarArray[T scalar](t *testing.T) {
+	t.Helper()
+	raw, err := SerializeWords(EncodeScalarVector([]T{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) != 4 || getUint32(raw) != uint32(sizeof[T]()/4) {
+		t.Fatalf("wrong empty scalar array header: %x", raw)
+	}
+	array := AsArray(raw)
+	if !array.IsValid() || array.Size() != 0 {
+		t.Fatal("invalid empty scalar array")
+	}
+	// Every 64-bit view must preserve valid-empty versus invalid without
+	// converting the four-byte header allocation to an eight-byte pointer.
+	if array.Int64() == nil || array.Uint64() == nil || array.Float64() == nil {
+		t.Fatal("valid empty array decoded as nil")
+	}
+	invalid := AsArray(nil)
+	if invalid.Int64() != nil || invalid.Uint64() != nil || invalid.Float64() != nil {
+		t.Fatal("invalid array decoded as non-nil")
+	}
+}
+
+func TestEmpty64BitArrays(t *testing.T) {
+	t.Run("int64", testEmptyScalarArray[int64])
+	t.Run("uint64", testEmptyScalarArray[uint64])
+	t.Run("float64", testEmptyScalarArray[float64])
 }

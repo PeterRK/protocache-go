@@ -336,3 +336,189 @@ func TestBigObject(t *testing.T) {
 		assert(t, unit.GetInt32() == int32(i))
 	}
 }
+
+// Cover the one-word aliases and root containers fixed in C++ 5ed4a80.
+func TestShortAliases(t *testing.T) {
+	for _, kind := range []descriptorpb.FieldDescriptorProto_Type{
+		descriptorpb.FieldDescriptorProto_TYPE_BOOL,
+		descriptorpb.FieldDescriptorProto_TYPE_INT32,
+		descriptorpb.FieldDescriptorProto_TYPE_INT64,
+		descriptorpb.FieldDescriptorProto_TYPE_STRING,
+	} {
+		t.Run(kind.String(), func(t *testing.T) {
+			holder := buildDynamicMessage(t, &descriptorpb.FileDescriptorProto{
+				Name: proto.String("short-alias.proto"), Syntax: proto.String("proto3"),
+				MessageType: []*descriptorpb.DescriptorProto{
+					{Name: proto.String("Row"), Field: []*descriptorpb.FieldDescriptorProto{{
+						Name: proto.String("_"), Number: proto.Int32(1), Type: kind.Enum(),
+						Label: descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
+					}}},
+					{Name: proto.String("Holder"), Field: []*descriptorpb.FieldDescriptorProto{{
+						Name: proto.String("row"), Number: proto.Int32(1),
+						Type: descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(), TypeName: proto.String(".Row"),
+						Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+					}}},
+				},
+			}, "Holder")
+			rowField := holder.Descriptor().Fields().Get(0)
+			for size := 0; size <= 4; size++ {
+				t.Run(fmt.Sprint(size), func(t *testing.T) {
+					row := dynamicpb.NewMessage(rowField.Message())
+					list := row.Mutable(row.Descriptor().Fields().Get(0)).List()
+					width := 1
+					if kind == descriptorpb.FieldDescriptorProto_TYPE_INT64 {
+						width = 2
+					}
+					want := make([]byte, 4*(1+size*width))
+					binary.LittleEndian.PutUint32(want, uint32(size<<2|width))
+					if kind == descriptorpb.FieldDescriptorProto_TYPE_BOOL {
+						want = make([]byte, (1+size+3)/4*4)
+						want[0] = byte(size << 2)
+					}
+					for i := 0; i < size; i++ {
+						switch kind {
+						case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
+							list.Append(protoreflect.ValueOfBool(i%2 != 0))
+							want[1+i] = byte(i % 2)
+						case descriptorpb.FieldDescriptorProto_TYPE_INT32:
+							list.Append(protoreflect.ValueOfInt32(int32(i - 1)))
+							binary.LittleEndian.PutUint32(want[4+i*4:], uint32(i-1))
+						case descriptorpb.FieldDescriptorProto_TYPE_INT64:
+							value := (int64(i) << 33) - 1
+							list.Append(protoreflect.ValueOfInt64(value))
+							binary.LittleEndian.PutUint64(want[4+i*8:], uint64(value))
+						case descriptorpb.FieldDescriptorProto_TYPE_STRING:
+							list.Append(protoreflect.ValueOfString("x"))
+							copy(want[4+i*4:], []byte{4, 'x', 0, 0})
+						}
+					}
+					raw, err := protocache.Serialize(row)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !bytes.Equal(raw, want) {
+						t.Fatalf("root encoding = %x, want %x", raw, want)
+					}
+					holder.Set(rowField, protoreflect.ValueOfMessage(row))
+					raw, err = protocache.Serialize(holder.Interface())
+					if err != nil {
+						t.Fatal(err)
+					}
+					view := protocache.AsMessage(raw)
+					field := view.GetField(0)
+					// Empty bool aliases share the zero-word empty-message encoding.
+					if kind == descriptorpb.FieldDescriptorProto_TYPE_BOOL && size == 0 && !field.IsValid() {
+						return
+					}
+					got := field.GetObject()
+					if len(got) < len(want) || !bytes.Equal(got[:len(want)], want) {
+						t.Fatalf("nested encoding = %x, want %x", got, want)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestRootContainers(t *testing.T) {
+	for size := 0; size <= 1; size++ {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			strings := []string{"x"}[:size]
+			raw, err := protocache.SerializeWords(protocache.EncodeStringArray(strings))
+			if err != nil {
+				t.Fatal(err)
+			}
+			array := protocache.AsStringArray(raw)
+			if len(raw) != 4*(1+size) || !array.IsValid() || array.Size() != uint32(size) {
+				t.Fatalf("invalid root array: %x", raw)
+			}
+			if size != 0 && array.Get(0) != "x" {
+				t.Fatal("lost root array value")
+			}
+			values := map[int32]int32{}
+			if size != 0 {
+				values[7] = 11
+			}
+			raw, err = protocache.SerializeWords(protocache.EncodeScalarMap(values, protocache.EncodeScalar[int32], protocache.EncodeScalar[int32]))
+			if err != nil {
+				t.Fatal(err)
+			}
+			pack := protocache.AsMap(raw)
+			if len(raw) != 4*(1+2*size) || !pack.IsValid() || pack.Size() != uint32(size) {
+				t.Fatalf("invalid root map: %x", raw)
+			}
+			if size != 0 {
+				value := pack.FindByInt32(7)
+				if !value.IsValid() || value.GetInt32() != 11 {
+					t.Fatal("lost root map value")
+				}
+			}
+		})
+	}
+}
+
+func TestShortMapAlias(t *testing.T) {
+	for size := 0; size <= 1; size++ {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			message := &pb.ArrMap{}
+			extra := pc.ArrMapEX{}
+			if size != 0 {
+				message.X = map[string]*pb.ArrMap_Array{"x": {X: []float32{7}}}
+				extra["x"] = pc.ArrMap_ArrayEX{7}
+			}
+			raw, err := protocache.Serialize(message)
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := extra.Serialize()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(raw, encoded) {
+				t.Fatalf("protobuf = %x, EX = %x", raw, encoded)
+			}
+			if size == 0 && !bytes.Equal(raw, []byte{0, 0, 0, 0x50}) {
+				t.Fatalf("wrong empty map header: %x", raw)
+			}
+			view := pc.AS_ArrMap(raw)
+			if !view.IsValid() || view.Size() != uint32(size) {
+				t.Fatalf("invalid map alias: %x", raw)
+			}
+			if size != 0 {
+				value, found := view.Find("x")
+				if !found || value.Size() != 1 || value.Get(0) != 7 {
+					t.Fatal("map alias value lost")
+				}
+			}
+		})
+	}
+}
+
+func TestAliasRequiresRepeatedField(t *testing.T) {
+	message := buildDynamicMessage(t, &descriptorpb.FileDescriptorProto{
+		Name: proto.String("invalid-alias.proto"), Syntax: proto.String("proto3"),
+		MessageType: []*descriptorpb.DescriptorProto{{
+			Name: proto.String("Invalid"), Field: []*descriptorpb.FieldDescriptorProto{{
+				Name: proto.String("_"), Number: proto.Int32(1),
+				Type:  descriptorpb.FieldDescriptorProto_TYPE_INT32.Enum(),
+				Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+			}},
+		}},
+	}, "Invalid")
+	for _, value := range []int32{0, 7} {
+		message.Set(message.Descriptor().Fields().Get(0), protoreflect.ValueOfInt32(value))
+		if _, err := protocache.Serialize(message.Interface()); err == nil {
+			t.Fatalf("accepted non-repeated alias with value %d", value)
+		}
+	}
+}
+
+func TestEmptyNestedMessageOmitted(t *testing.T) {
+	raw, err := protocache.Serialize(&pb.Main{Object: &pb.Small{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(raw, []byte{0, 0, 0, 0}) {
+		t.Fatalf("empty nested message retained: %x", raw)
+	}
+}
