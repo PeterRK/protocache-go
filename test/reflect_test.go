@@ -8,6 +8,8 @@ import (
 	pc "github.com/peterrk/protocache-go"
 	"github.com/peterrk/protocache-go/reflect"
 	"github.com/peterrk/protocache-go/reflect/compiler"
+	"github.com/peterrk/protocache-go/test/pb"
+	"google.golang.org/protobuf/reflect/protodesc"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -29,6 +31,22 @@ func parseProtoForTest(t testing.TB, path string) *descriptorpb.FileDescriptorPr
 }
 
 func TestReflection(t *testing.T) {
+	// Compiled descriptors use explicit types and absolute type names.
+	var compiledPool reflect.DescriptorPool
+	assert(t, compiledPool.Register(protodesc.ToFileDescriptorProto(pb.File_test_proto)) == nil)
+	compiledRoot := compiledPool.Find("test.Main")
+	assert(t, compiledRoot != nil)
+	objectField := compiledRoot.Lookup("object")
+	assert(t, objectField != nil)
+	assert(t, objectField.ValueDescriptor() == compiledPool.Find("test.Small"))
+	for _, name := range []string{"index", "objects"} {
+		field := compiledRoot.Lookup(name)
+		assert(t, field != nil && field.IsMap() && field.IsRepeated())
+		if name == "objects" {
+			assert(t, field.ValueDescriptor() == compiledPool.Find("test.Small"))
+		}
+	}
+
 	proto := parseProtoForTest(t, "reflect-test.proto")
 
 	var taggedPool reflect.DescriptorPool

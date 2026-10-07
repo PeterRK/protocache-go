@@ -1237,9 +1237,6 @@ func exGetExpr(field *protogen.Field, imports map[string]string, name string) []
 		switch valueField.Desc.Kind() {
 		case protoreflect.MessageKind:
 			call := exAliasCtor(imports, valueField.Desc.Message())
-			if !exIsAliasMessage(valueField.Desc.Message()) {
-				call = "TO_" + exNamedType(imports, valueField.Desc) + "EX"
-			}
 			lines = append(lines, "	m."+name+"[key] = "+call+"(valField.GetObject())")
 		case protoreflect.BytesKind:
 			lines = append(lines,
@@ -1570,9 +1567,7 @@ func exSetExpr(field *protogen.Field, imports map[string]string, name string) []
 			"} else {",
 			"	m." + name + " = make(" + exGoType(imports, field) + ", len(v))",
 			"	for k, one := range v {",
-			"		if one != nil {",
-			"			m." + name + "[k] = append([]byte(nil), one...)",
-			"		}",
+			"		m." + name + "[k] = append([]byte(nil), one...)",
 			"	}",
 			"}",
 		}

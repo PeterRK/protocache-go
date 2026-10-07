@@ -42,7 +42,7 @@ message Main {
 	bytes data = 8;
 	float f32 = 9;
 	double f64 = 10 [(mark) = "xyz"];
-	Small object = 11;
+	.test.Small object = 11;
 	repeated int32 i32v = 12;
 	repeated uint64 u64v = 13;
 	repeated string strv = 14;

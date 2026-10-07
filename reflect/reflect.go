@@ -249,6 +249,7 @@ func (p *DescriptorPool) register(ns string, proto *pb.DescriptorProto) error {
 			}
 			if options.GetMapEntry() {
 				mapEntries[one.GetName()] = one
+				mapEntries[calcFullname(fullname, one.GetName())] = one
 				continue
 			}
 		}
@@ -267,7 +268,7 @@ func (p *DescriptorPool) register(ns string, proto *pb.DescriptorProto) error {
 			return fmt.Errorf("%w: %s", ErrInvalidField, src.GetName())
 		}
 		if out.value == TypeMessage || out.value == TypeUnknown {
-			entry := mapEntries[src.GetTypeName()]
+			entry := mapEntries[strings.TrimPrefix(src.GetTypeName(), ".")]
 			if entry != nil {
 				out.key = convertType(entry.Field[0])
 				out.value = convertType(entry.Field[1])
@@ -347,11 +348,14 @@ func (p *DescriptorPool) fixUnknownType(fullname string, descriptor *Descriptor)
 	}
 
 	checkType := func(field *Field) bool {
-		if field.value != TypeUnknown {
+		if field.value != TypeUnknown && field.value != TypeMessage {
 			return true
 		}
 		if len(field.valueType) == 0 {
 			return false
+		}
+		if strings.HasPrefix(field.valueType, ".") {
+			return bindType(field.valueType[1:], field)
 		}
 		if bindType(field.valueType, field) {
 			return true

@@ -7,8 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/peterrk/protocache-go/test/pb"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
@@ -163,9 +165,11 @@ func TestDeprecatedDeclarationsAreExcluded(t *testing.T) {
 }
 
 func TestGeneratedShortAliases(t *testing.T) {
+	dependency := protodesc.ToFileDescriptorProto(pb.File_test_proto)
+	dependency.Options.GoPackage = proto.String("github.com/peterrk/protocache-go/test/pc;pc")
 	file := &descriptorpb.FileDescriptorProto{
 		Name: proto.String("short_alias.proto"), Syntax: proto.String("proto3"),
-		Package: proto.String("fixture"),
+		Package: proto.String("fixture"), Dependency: []string{dependency.GetName()},
 		Options: &descriptorpb.FileOptions{GoPackage: proto.String("example.com/fixture")},
 	}
 	holder := &descriptorpb.DescriptorProto{Name: proto.String("Holder")}
@@ -190,9 +194,39 @@ func TestGeneratedShortAliases(t *testing.T) {
 			Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
 		})
 	}
+	// Reuse this generated fixture for bytes-map copying and imported message maps.
+	for _, row := range []struct {
+		name, entry string
+		value       descriptorpb.FieldDescriptorProto_Type
+	}{
+		{"blobs", "BlobsEntry", descriptorpb.FieldDescriptorProto_TYPE_BYTES},
+		{"objects", "ObjectsEntry", descriptorpb.FieldDescriptorProto_TYPE_MESSAGE},
+	} {
+		value := &descriptorpb.FieldDescriptorProto{
+			Name: proto.String("value"), Number: proto.Int32(2), Type: row.value.Enum(),
+			Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+		}
+		if row.value == descriptorpb.FieldDescriptorProto_TYPE_MESSAGE {
+			value.TypeName = proto.String(".test.Small")
+		}
+		holder.NestedType = append(holder.NestedType, &descriptorpb.DescriptorProto{
+			Name: proto.String(row.entry), Options: &descriptorpb.MessageOptions{MapEntry: proto.Bool(true)},
+			Field: []*descriptorpb.FieldDescriptorProto{{
+				Name: proto.String("key"), Number: proto.Int32(1),
+				Type:  descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
+				Label: descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
+			}, value},
+		})
+		holder.Field = append(holder.Field, &descriptorpb.FieldDescriptorProto{
+			Name: proto.String(row.name), Number: proto.Int32(int32(len(holder.Field) + 1)),
+			Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
+			TypeName: proto.String(".fixture.Holder." + row.entry),
+			Label:    descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
+		})
+	}
 	file.MessageType = append(file.MessageType, holder)
 	gen, err := (protogen.Options{}).New(&pluginpb.CodeGeneratorRequest{
-		FileToGenerate: []string{file.GetName()}, ProtoFile: []*descriptorpb.FileDescriptorProto{file},
+		FileToGenerate: []string{file.GetName()}, ProtoFile: []*descriptorpb.FileDescriptorProto{dependency, file},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -200,8 +234,11 @@ func TestGeneratedShortAliases(t *testing.T) {
 	oldTypes, oldAliases := typeBook, aliasBook
 	typeBook, aliasBook = make(map[string]Type), make(map[string]Alias)
 	defer func() { typeBook, aliasBook = oldTypes, oldAliases }()
-	generated := gen.Files[0]
-	CollectMessages(string(generated.GoImportPath), generated.Messages)
+	for _, one := range gen.Files {
+		CollectEnums(string(one.GoImportPath), one.Enums)
+		CollectMessages(string(one.GoImportPath), one.Messages)
+	}
+	generated := gen.FilesByPath[file.GetName()]
 	if err := GenFile(gen, generated, Options{Relative: true}); err != nil {
 		t.Fatal(err)
 	}
@@ -230,6 +267,8 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+
+	"github.com/peterrk/protocache-go/test/pc"
 )
 
 func TestGeneratedShortAliases(t *testing.T) {
@@ -287,6 +326,13 @@ func TestGeneratedShortAliases(t *testing.T) {
 			holder.SetInts(ints)
 			holder.SetLongs(longs)
 			holder.SetStrings(strings)
+			blobs := map[string][]byte{"nil": nil, "empty": {}, "data": {1, 2}}
+			holder.SetBlobs(blobs)
+			blobs["data"][0] = 9
+			delete(blobs, "nil")
+			child := pc.TO_SmallEX(nil)
+			child.SetI32(7)
+			holder.SetObjects(map[string]*pc.SmallEX{"one": child})
 			// Exercise new encoding, source replay, and encoding after getters.
 			for pass := 0; pass < 3; pass++ {
 				raw, err := holder.Serialize()
@@ -297,6 +343,17 @@ func TestGeneratedShortAliases(t *testing.T) {
 				if !slices.Equal(view.GetBools(), bools) || !slices.Equal(view.GetInts(), ints) ||
 					!slices.Equal(view.GetLongs(), longs) || !slices.Equal(view.GetStrings(), strings) {
 					t.Fatalf("nested values lost on pass %d: %x", pass, raw)
+				}
+				blobs := view.GetBlobs()
+				_, hasNil := blobs["nil"]
+				_, hasEmpty := blobs["empty"]
+				if len(blobs) != 3 || !hasNil || !hasEmpty || len(blobs["nil"]) != 0 ||
+					len(blobs["empty"]) != 0 || !slices.Equal(blobs["data"], []byte{1, 2}) {
+					t.Fatalf("bytes map keys or copied values lost on pass %d", pass)
+				}
+				objects := view.GetObjects()
+				if len(objects) != 1 || objects["one"] == nil || objects["one"].GetI32() != 7 {
+					t.Fatalf("imported message map value lost on pass %d", pass)
 				}
 				if pass == 0 {
 					holder = TO_HolderEX(raw)
